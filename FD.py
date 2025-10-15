@@ -10,10 +10,6 @@ def GL(f, alpha, x_min, x_max):
     steps = int(1e3)
     h = 1e-2
 
-    # Integar alpha case
-    if type(alpha) == int:
-        steps = alpha + 1
-
     # Kernal
     k = np.arange(steps)
     kernal = np.empty(steps)
@@ -64,12 +60,12 @@ def RLI(f, alpha, x_min, x_max):
 # Plotting
 def main():
     def f(x):
-        return 1/(np.exp(x/10) - 1)
+        return np.sin(x)*np.exp(-x)
 
     plt.figure()
     num = 50
     for i in range(num):
-        x, FD = GL(f, 1 + 2 * i / num, -1, 1)
+        x, FD = RLI(f, 1 + 2 * i / num, 0, 2*np.pi)
         plt.plot(x, FD)
     plt.show()
 
