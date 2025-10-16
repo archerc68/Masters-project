@@ -89,18 +89,28 @@ def RL_fft(f, alpha, x):
     return x[b:], np.real(ifft(temp2)[b:])
 
 
-alphas = np.linspace(1, 2, 5)
+### Plotting ###
 
 
-def f(x):
-    return np.cos(x)
+def main():
+    # Alpha values
+    alphas = np.linspace(1, 2, 5)
+
+    # Function
+    def f(x):
+        return np.cos(x)
+
+    # Displaying plot
+    plt.figure()
+    for i in range(len(alphas)):
+        x = np.arange(0, 2 * np.pi, 1e-2)
+        x, y = RL(
+            f, float(alphas[i]), x
+        )  # Select type of FD (GL, RLI, RL and fft variants)
+
+        plt.plot(x, y, label=str(alphas[i]))
+    # plt.legend()
+    plt.show()
 
 
-plt.figure()
-for i in range(len(alphas)):
-    x = np.arange(0, 2 * np.pi, 1e-2)
-    x, y = RL(f, float(alphas[i]), x)
-
-    plt.plot(x, y, label=str(alphas[i]))
-# plt.legend()
-plt.show()
+main()
