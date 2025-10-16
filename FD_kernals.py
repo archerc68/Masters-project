@@ -73,7 +73,7 @@ def RLI_fft(f, alpha, x):
     return x[b:], np.real(temp2[b:])
 
 
-# RL using ffts
+# RL using ffts -- currently broken
 def RL_fft(f, alpha, x):
     # Params
     h = x[1] - x[0]
@@ -92,7 +92,7 @@ def RL_fft(f, alpha, x):
 ### Plotting ###
 
 
-def main():
+def main(FD):
     # Alpha values
     alphas = np.linspace(1, 2, 5)
 
@@ -103,14 +103,27 @@ def main():
     # Displaying plot
     plt.figure()
     for i in range(len(alphas)):
-        x = np.arange(0, 2 * np.pi, 1e-2)
-        x, y = RL(
-            f, float(alphas[i]), x
-        )  # Select type of FD (GL, RLI, RL and fft variants)
+        x = np.arange(
+            0, 2 * np.pi, 1e-2
+        )  # Increasing resolution may warrant an increase in GL buffer size
+        x, y = FD(f, float(alphas[i]), x)
 
         plt.plot(x, y, label=str(alphas[i]))
-    # plt.legend()
+    plt.legend()
     plt.show()
 
+def test():
+    print("Select type of fractional derivative:")
+    print("1) GL \n2) RLI \n3) RLI")
+    x = input()
+    if x == "1":
+        return GL
+    elif x == "2":
+        return RL
+    elif x == "3":
+        return RLI
+    else:
+        print("out of bounds")
+        test()
 
-main()
+main(test())  # Select type of FD (GL, RLI, RL and fft variants)
