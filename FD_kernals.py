@@ -113,8 +113,9 @@ def main(FD):
     plt.show()
 
 def test():
-    print("Select type of fractional derivative:")
-    print("1) GL \n2) RLI \n3) RLI")
+    print("\nSelect type of fractional derivative:\n")
+    print("1) Grünwald–Letnikov FD\n2) Riemann-Liouville FD\n3) Riemann-Liouville FI\n")
+    print("Type response number:")
     x = input()
     if x == "1":
         return GL
