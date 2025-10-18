@@ -16,7 +16,7 @@ def GLkernal(n_max, h, alpha):
 
 
 def RLkernal(n, h, alpha):
-    k = np.arange(n)
+    k = np.arange(0, n)
     return ((h**alpha) / gamma(alpha)) * k ** (alpha - 1)
 
 
@@ -27,11 +27,10 @@ def GL(f, alpha, x):
     b = 250  # Buffer
     x = np.arange(x[0] - b * h, x[-1] + h, h)
     # Kernals
-    G_k = GLkernal(len(x), h, alpha)
+    n = 1000
+    G_k = GLkernal(n, h, alpha)
     F_j = f(x)
-    # GL
-    temp1 = fft(G_k) * fft(F_j)
-    return x[b:], np.real(ifft(temp1)[b:])
+    return x[b:], fftconvolve(F_j, G_k)[b : len(x)]
 
 
 ### Riemann-Liouville ###
@@ -42,7 +41,10 @@ def RLI(f, alpha, x):
     h = x[1] - x[0]
     F_k = f(x)
     R_k = RLkernal(len(x), h, alpha)
-    conv = fftconvolve(F_k, R_k)[: len(x)]
+    N = len(x) - 1
+    F_pad = np.pad(F_k, (0, N))
+    R_pad = np.pad(R_k, (0, N))
+    conv = np.real(ifft(fft(F_pad) * fft(R_pad)))[: len(x)]
 
     conv -= 0.5 * F_k[0] * R_k[0]
     return x, conv
@@ -62,15 +64,13 @@ def RL(f, alpha, x):
 def RLI_fft(f, alpha, x):
     # Params
     h = x[1] - x[0]
-    b = 250  # Buffer
+    b = 1000  # Buffer
     x = np.arange(x[0] - b * h, x[-1] + h, h)
     # Kernals
     R_k = RLkernal(len(x), h, alpha)
     F_j = f(x)
-    # RL
-    temp1 = fftconvolve(R_k, F_j)[: len(x)]
-    temp2 = temp1 - 0.5 * F_j[0] * R_k
-    return x[b:], np.real(temp2[b:])
+    conv = fftconvolve(F_j, R_k)[: len(x)] - 0.5 * F_j[0] * R_k
+    return x[b:], conv[b:]
 
 
 # RL using ffts -- currently broken
@@ -79,14 +79,24 @@ def RL_fft(f, alpha, x):
     h = x[1] - x[0]
     b = 250  # Buffer
     x = np.arange(x[0] - b * h, x[-1] + h, h)
+    n = 250
+
     # Kernals
     R_k = RLkernal(len(x), h, np.ceil(alpha) - alpha + 1)
-    G_k = GLkernal(len(x), h, np.ceil(alpha) + 1)
+    G_k = GLkernal(n, h, np.ceil(alpha) + 1)
     F_j = f(x)
-    # RL
-    temp1 = fft(R_k) * fft(G_k)
-    temp2 = (fft(F_j) - 0.5 * F_j[0]) * temp1
-    return x[b:], np.real(ifft(temp2)[b:])
+
+    N = 2 * len(x) + n - 1
+    Rpad = np.pad(R_k, (0, N - len(x)))
+    Gpad = np.pad(G_k, (0, N - n))
+    Fpad = np.pad(F_j, (0, N - len(x)))
+
+    temp1 = fft(Rpad) * fft(Gpad) * fft(Fpad)
+    temp2 = 0.5 * F_j[0] * fft(Rpad) * fft(Gpad)
+
+    conv = np.real(ifft(temp1 - temp2))
+
+    return x[b:], conv[b : len(x)]
 
 
 ### Plotting ###
@@ -94,7 +104,7 @@ def RL_fft(f, alpha, x):
 
 def main(FD):
     # Alpha values
-    alphas = np.linspace(1, 2, 5)
+    alphas = np.linspace(1, 3, 50)
 
     # Function
     def f(x):
@@ -104,13 +114,14 @@ def main(FD):
     plt.figure()
     for i in range(len(alphas)):
         x = np.arange(
-            0, 2 * np.pi, 1e-2
+            -2 * np.pi, 2 * np.pi, 1e-2
         )  # Increasing resolution may warrant an increase in GL buffer size
         x, y = FD(f, float(alphas[i]), x)
 
         plt.plot(x, y, label=str(alphas[i]))
-    plt.legend()
+    # plt.legend()
     plt.show()
+
 
 def test():
     print("\nSelect type of fractional derivative:\n")
@@ -120,11 +131,12 @@ def test():
     if x == "1":
         return GL
     elif x == "2":
-        return RL
+        return RL_fft
     elif x == "3":
         return RLI
     else:
         print("out of bounds")
         test()
 
-main(test())  # Select type of FD (GL, RLI, RL and fft variants)
+
+main(RL_fft)  # Select type of FD (GL, RLI, RL and fft variants)
