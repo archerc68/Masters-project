@@ -1,18 +1,17 @@
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.fft import fft, ifft
+from scipy.fft import rfft, irfft
 from scipy.signal import fftconvolve
 from scipy.special import gamma
+from alive_progress import alive_bar
 
 
 ### Kernals ##
 def GLkernal(n_max, h, alpha):
     k = np.arange(n_max)
-    g_k = np.empty(n_max)
-    g_k[0] = 1 / (h**alpha)
-    g_k[1:] = 1 - (alpha + 1) / k[1:]
-
-    return np.cumprod(g_k)
+    g_k = np.ones(n_max)
+    g_k[1:] -= (alpha + 1) / k[1:]
+    return np.cumprod(g_k)/(h**alpha)
 
 
 def RLkernal(n, h, alpha):
@@ -21,13 +20,12 @@ def RLkernal(n, h, alpha):
 
 
 ### GL ###
-def GL(f, alpha, x):
+def GL(f, alpha, x, n=1000):
     # Params
     h = x[1] - x[0]
     b = 250  # Buffer
     x = np.arange(x[0] - b * h, x[-1] + h, h)
     # Kernals
-    n = 1000
     G_k = GLkernal(n, h, alpha)
     F_j = f(x)
     return x[b:], fftconvolve(F_j, G_k)[b : len(x)]
@@ -36,15 +34,12 @@ def GL(f, alpha, x):
 ### Riemann-Liouville ###
 
 
-# RLI
+# RLI -- currently broken
 def RLI(f, alpha, x):
     h = x[1] - x[0]
     F_k = f(x)
     R_k = RLkernal(len(x), h, alpha)
-    N = len(x) - 1
-    F_pad = np.pad(F_k, (0, N))
-    R_pad = np.pad(R_k, (0, N))
-    conv = np.real(ifft(fft(F_pad) * fft(R_pad)))[: len(x)]
+    conv = fftconvolve(F_k, R_k)[: len(x)]
 
     conv -= 0.5 * F_k[0] * R_k[0]
     return x, conv
@@ -56,11 +51,11 @@ def RL(f, alpha, x):
         x, y = RLI(f, np.ceil(alpha) - alpha + 1, x)
         return y
 
-    x, deriv = GL(g, np.ceil(alpha) + 1, x)
+    x, deriv = GL(g, np.ceil(alpha) + 1, x, n=int(np.ceil(alpha) + 2))
     return x, deriv
 
 
-# RLI using ffts
+# RLI using ffts -- currently broken
 def RLI_fft(f, alpha, x):
     # Params
     h = x[1] - x[0]
@@ -73,30 +68,42 @@ def RLI_fft(f, alpha, x):
     return x[b:], conv[b:]
 
 
-# RL using ffts -- currently broken
+# RL using ffts
 def RL_fft(f, alpha, x):
-    # Params
+    # Parameters
     h = x[1] - x[0]
     b = 250  # Buffer
     x = np.arange(x[0] - b * h, x[-1] + h, h)
-    n = 250
+    n = int(np.ceil(alpha) + 1)
 
     # Kernals
-    R_k = RLkernal(len(x), h, np.ceil(alpha) - alpha + 1)
-    G_k = GLkernal(n, h, np.ceil(alpha) + 1)
+    k = np.arange(len(x))
+
+    # G'_k
+    G_k = np.ones(n + 1)  # Of length n + 1 since n is an integar
+    G_k[1:] -= (n + 1) / k[1 : (n + 1)]
+    G_k = np.cumprod(G_k)
+
+    # R'_k
+    R_k = k ** (n - alpha - 1)
+
+    # F_j
     F_j = f(x)
 
-    N = 2 * len(x) + n - 1
+    # Linear convolution
+    N = 2 * len(x) + n
     Rpad = np.pad(R_k, (0, N - len(x)))
-    Gpad = np.pad(G_k, (0, N - n))
+    Gpad = np.pad(G_k, (0, N - n - 1))
     Fpad = np.pad(F_j, (0, N - len(x)))
 
-    temp1 = fft(Rpad) * fft(Gpad) * fft(Fpad)
-    temp2 = 0.5 * F_j[0] * fft(Rpad) * fft(Gpad)
+    RG = rfft(Rpad) * rfft(Gpad)
+    FRG = rfft(Fpad) * RG
+    correction = 0.5 * F_j[0] * RG
 
-    conv = np.real(ifft(temp1 - temp2))
+    conv = irfft(FRG - correction)
+    ans = conv / (gamma(n - alpha) * (h**alpha))
 
-    return x[b:], conv[b : len(x)]
+    return x[b:], ans[b : len(x)]
 
 
 ### Plotting ###
@@ -104,23 +111,28 @@ def RL_fft(f, alpha, x):
 
 def main(FD):
     # Alpha values
-    alphas = np.linspace(1, 3, 50)
+    num = 5000
+    alphas = np.linspace(0, 1, num)
 
     # Function
     def f(x):
-        return np.cos(x)
+        return np.exp(-x*x)
 
     # Displaying plot
     plt.figure()
-    for i in range(len(alphas)):
-        x = np.arange(
-            -2 * np.pi, 2 * np.pi, 1e-2
-        )  # Increasing resolution may warrant an increase in GL buffer size
-        x, y = FD(f, float(alphas[i]), x)
+    with alive_bar(num) as bar:
+        for i in range(len(alphas)):
+            x = np.arange(
+                -2 * np.pi, 2 * np.pi, 1e-2
+            )  # Increasing resolution may warrant an increase in GL buffer size
+            x, y = FD(f, float(alphas[i]), x)
+            bar()
 
-        plt.plot(x, y, label=str(alphas[i]))
+            plt.plot(x, y, label=str(alphas[i]))
+    print("Plotting...")
     # plt.legend()
-    plt.show()
+    #plt.show()
+    print("Done")
 
 
 def test():
