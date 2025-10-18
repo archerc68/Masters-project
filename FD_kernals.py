@@ -1,17 +1,17 @@
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.fft import rfft, irfft
+from alive_progress import alive_bar
+from scipy.fft import irfft, rfft
 from scipy.signal import fftconvolve
 from scipy.special import gamma
-from alive_progress import alive_bar
 
 
-### Kernals ##
+### Kernals ###
 def GLkernal(n_max, h, alpha):
     k = np.arange(n_max)
     g_k = np.ones(n_max)
     g_k[1:] -= (alpha + 1) / k[1:]
-    return np.cumprod(g_k)/(h**alpha)
+    return np.cumprod(g_k) / (h**alpha)
 
 
 def RLkernal(n, h, alpha):
@@ -34,7 +34,7 @@ def GL(f, alpha, x, n=1000):
 ### Riemann-Liouville ###
 
 
-# RLI -- currently broken
+# RLI -- currently slightly broken
 def RLI(f, alpha, x):
     h = x[1] - x[0]
     F_k = f(x)
@@ -55,7 +55,7 @@ def RL(f, alpha, x):
     return x, deriv
 
 
-# RLI using ffts -- currently broken
+# RLI using ffts -- currently very broken
 def RLI_fft(f, alpha, x):
     # Params
     h = x[1] - x[0]
@@ -78,32 +78,18 @@ def RL_fft(f, alpha, x):
 
     # Kernals
     k = np.arange(len(x))
-
-    # G'_k
-    G_k = np.ones(n + 1)  # Of length n + 1 since n is an integar
-    G_k[1:] -= (n + 1) / k[1 : (n + 1)]
-    G_k = np.cumprod(G_k)
-
-    # R'_k
+    G_k = np.cumprod(np.concatenate(([1.0], 1 - (n + 1) / k[1 : n + 1])))
     R_k = k ** (n - alpha - 1)
-
-    # F_j
     F_j = f(x)
 
     # Linear convolution
     N = 2 * len(x) + n
-    Rpad = np.pad(R_k, (0, N - len(x)))
-    Gpad = np.pad(G_k, (0, N - n - 1))
-    Fpad = np.pad(F_j, (0, N - len(x)))
+    Rpad, Gpad, Fpad = [np.pad(arr, (0, N - len(arr))) for arr in (R_k, G_k, F_j)]
 
     RG = rfft(Rpad) * rfft(Gpad)
-    FRG = rfft(Fpad) * RG
-    correction = 0.5 * F_j[0] * RG
+    conv = irfft((rfft(Fpad) - 0.5 * F_j[0]) * RG)
 
-    conv = irfft(FRG - correction)
-    ans = conv / (gamma(n - alpha) * (h**alpha))
-
-    return x[b:], ans[b : len(x)]
+    return x[b:], conv[b : len(x)] / (gamma(n - alpha) * (h**alpha))
 
 
 ### Plotting ###
@@ -111,12 +97,12 @@ def RL_fft(f, alpha, x):
 
 def main(FD):
     # Alpha values
-    num = 5000
+    num = 50
     alphas = np.linspace(0, 1, num)
 
     # Function
     def f(x):
-        return np.exp(-x*x)
+        return np.exp(-x * x)
 
     # Displaying plot
     plt.figure()
@@ -131,24 +117,25 @@ def main(FD):
             plt.plot(x, y, label=str(alphas[i]))
     print("Plotting...")
     # plt.legend()
-    #plt.show()
+    plt.show()
     print("Done")
 
 
+### Frontend ###
 def test():
-    print("\nSelect type of fractional derivative:\n")
-    print("1) Grünwald–Letnikov FD\n2) Riemann-Liouville FD\n3) Riemann-Liouville FI\n")
-    print("Type response number:")
-    x = input()
-    if x == "1":
-        return GL
-    elif x == "2":
-        return RL_fft
-    elif x == "3":
-        return RLI
-    else:
-        print("out of bounds")
-        test()
+    options = {"1": GL, "2": RL_fft, "3": RLI}
+
+    while True:
+        print("\nSelect type of fractional derivative:\n")
+        print("1) Grünwald–Letnikov FD")
+        print("2) Riemann-Liouville FD")
+        print("3) Riemann-Liouville FI\n")
+        x = input("Type response number: ")
+
+        if x in options:
+            return options[x]
+        else:
+            print("\nOut of bounds, please try again.")
 
 
-main(RL_fft)  # Select type of FD (GL, RLI, RL and fft variants)
+main(test())  # Select type of FD (GL, RLI, RL and fft variants)
