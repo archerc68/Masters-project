@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 from alive_progress import alive_bar
-from scipy.fft import irfft, rfft
+from scipy.fft import irfft, rfft, next_fast_len
 from scipy.signal import fftconvolve
 from scipy.special import gamma
 
@@ -83,9 +83,8 @@ def RL_fft(f, alpha, x):
     F_j = f(x)
 
     # Linear convolution
-    N = 2 * len(x) + n
+    N = next_fast_len(2 * len(x) + n)
     Rpad, Gpad, Fpad = [np.pad(arr, (0, N - len(arr))) for arr in (R_k, G_k, F_j)]
-
     RG = rfft(Rpad) * rfft(Gpad)
     conv = irfft((rfft(Fpad) - 0.5 * F_j[0]) * RG)
 
@@ -97,12 +96,12 @@ def RL_fft(f, alpha, x):
 
 def main(FD):
     # Alpha values
-    num = 50
-    alphas = np.linspace(0, 1, num)
+    num = 5000
+    alphas =1 + np.linspace(0, 1, num)
 
     # Function
     def f(x):
-        return np.exp(-x * x)
+        return np.cos(x)
 
     # Displaying plot
     plt.figure()
@@ -114,10 +113,10 @@ def main(FD):
             x, y = FD(f, float(alphas[i]), x)
             bar()
 
-            plt.plot(x, y, label=str(alphas[i]))
+            #plt.plot(x, y, label=str(alphas[i]))
     print("Plotting...")
     # plt.legend()
-    plt.show()
+    #plt.show()
     print("Done")
 
 
