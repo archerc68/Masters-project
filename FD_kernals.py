@@ -72,7 +72,7 @@ def RLI_fft(f, alpha, x):
 def RL_fft(f, alpha, x):
     # Parameters
     h = x[1] - x[0]
-    b = 250  # Buffer
+    b = 0  # Buffer
     x = np.arange(x[0] - b * h, x[-1] + h, h)
     n = int(np.ceil(alpha) + 1)
 
@@ -96,7 +96,7 @@ def RL_fft(f, alpha, x):
 
 def main(FD):
     # Alpha values
-    num = 5000
+    num = 50
     alphas =1 + np.linspace(0, 1, num)
 
     # Function
@@ -113,10 +113,10 @@ def main(FD):
             x, y = FD(f, float(alphas[i]), x)
             bar()
 
-            #plt.plot(x, y, label=str(alphas[i]))
+            plt.plot(x, y, label=str(alphas[i]))
     print("Plotting...")
     # plt.legend()
-    #plt.show()
+    plt.show()
     print("Done")
 
 
