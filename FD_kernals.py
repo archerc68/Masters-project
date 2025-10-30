@@ -1,16 +1,15 @@
 import matplotlib.pyplot as plt
 import numpy as np
-from alive_progress import alive_bar
-from scipy.fft import irfft, rfft, next_fast_len
+from scipy.fft import irfft, next_fast_len, rfft
 from scipy.signal import fftconvolve
 from scipy.special import gamma
 
 
 ### Kernals ###
 def GLkernal(n_max, h, alpha):
-    k = np.arange(n_max)
+    k = np.arange(1, n_max)
     g_k = np.ones(n_max)
-    g_k[1:] -= (alpha + 1) / k[1:]
+    g_k[1:] -= (alpha + 1) / k
     return np.cumprod(g_k) / (h**alpha)
 
 
@@ -72,7 +71,7 @@ def RLI_fft(f, alpha, x):
 def RL_fft(f, alpha, x):
     # Parameters
     h = x[1] - x[0]
-    b = 0  # Buffer
+    b = 250  # Buffer
     x = np.arange(x[0] - b * h, x[-1] + h, h)
     n = int(np.ceil(alpha) + 1)
 
@@ -91,44 +90,50 @@ def RL_fft(f, alpha, x):
     return x[b:], conv[b : len(x)] / (gamma(n - alpha) * (h**alpha))
 
 
+### Caputo ###
+def Caputo_L1(f, alpha, x):
+    h = x[1] - x[0]
+    buffer = 1000
+    x = np.arange(x[0] - buffer * h, x[-1] + h, h)
+
+    G1_k = np.array([1, -1]) / h
+    F_k = f(x)
+
+    j = np.arange(len(x) + 1)
+    a = np.diff(j ** (1 - alpha))
+
+    # Optimal padding to convort circular convolution to linear
+    N = next_fast_len(len(x) + len(a) + 1)
+
+    # Constant kernals (only depend on alpha)
+    a_pad = np.pad(a, (0, N - len(a)))
+    G1_k_pad = np.pad(G1_k, (0, N - 2))
+
+    # Function output
+    F_k_pad = np.pad(F_k, (0, N - len(F_k)))
+
+    conv = irfft(
+        rfft(a_pad) * rfft(G1_k_pad) * rfft(F_k_pad), n=N
+    )  # Double convolution
+
+    ans = conv * h ** (1 - alpha) / gamma(2 - alpha)
+
+    return x[buffer:], ans[buffer : len(x)]
+
+
 ### Plotting ###
-
-
-def main(FD):
-    # Alpha values
-    num = 50
-    alphas =1 + np.linspace(0, 1, num)
-
-    # Function
-    def f(x):
-        return np.cos(x)
-
-    # Displaying plot
-    plt.figure()
-    with alive_bar(num) as bar:
-        for i in range(len(alphas)):
-            x = np.arange(
-                -2 * np.pi, 2 * np.pi, 1e-2
-            )  # Increasing resolution may warrant an increase in GL buffer size
-            x, y = FD(f, float(alphas[i]), x)
-            bar()
-
-            plt.plot(x, y, label=str(alphas[i]))
-    print("Plotting...")
-    # plt.legend()
-    plt.show()
-    print("Done")
 
 
 ### Frontend ###
 def test():
-    options = {"1": GL, "2": RL_fft, "3": RLI}
+    options = {"1": GL, "2": RL_fft, "3": RLI, "4": Caputo_L1}
 
     while True:
         print("\nSelect type of fractional derivative:\n")
         print("1) Grünwald–Letnikov FD")
         print("2) Riemann-Liouville FD")
-        print("3) Riemann-Liouville FI\n")
+        print("3) Riemann-Liouville FI")
+        print("4) Caputo FD\n")
         x = input("Type response number: ")
 
         if x in options:
@@ -137,4 +142,28 @@ def test():
             print("\nOut of bounds, please try again.")
 
 
-main(test())  # Select type of FD (GL, RLI, RL and fft variants)
+if __name__ == "__main__":
+    FD = test()
+    # Alpha values
+    num = 50
+    alphas = 1 + np.linspace(0.01, 0.99, num)
+
+    # Function
+    def f(x):
+        return np.cos(x)
+
+    # Displaying plot
+    plt.figure()
+    for i in range(len(alphas)):
+        x = np.arange(
+            -2 * np.pi, 2 * np.pi, 1e-2
+        )  # Increasing resolution may warrant an increase in GL buffer size
+        x, y = FD(f, float(alphas[i]), x)
+
+        plt.plot(x, y, label=str(alphas[i]))
+    print("Plotting...")
+    plt.title(
+        "Fractional derivatives between " + str(alphas[0]) + " - " + str(alphas[-1])
+    )
+    plt.show()
+    print("Done")
