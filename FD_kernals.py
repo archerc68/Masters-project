@@ -146,7 +146,7 @@ if __name__ == "__main__":
     FD = test()
     # Alpha values
     num = 50
-    alphas = 1 + np.linspace(0.01, 0.99, num)
+    alphas = np.linspace(0.01, 0.99, num)
 
     # Function
     def f(x):
