@@ -4,13 +4,16 @@ from numpy.polynomial.chebyshev import chebvander
 from scipy.optimize import least_squares
 from scipy.special import gamma
 
+# region parameter
 a, b = 0, 10
 L = b - a
 x = np.linspace(a, b, 250)
 t = 2 * x / L - 1
 N = 10
+# endregion
 
 
+# region D matrix
 def S_matrix_vectorized(N, nu):
     i = np.arange(N)[:, None]  # column vector (i)
     j = np.arange(N)[None, :]  # row vector (j)
@@ -41,11 +44,10 @@ def S_matrix_vectorized(N, nu):
     return S
 
 
-D_nu = S_matrix_vectorized(N=N, nu=1.5)
-phi = chebvander(t, N - 1)
-D_nu_phi = np.linalg.tensordot(D_nu, phi, axes=(1, 1))
+# endregion
 
 
+# region fitting a parameters functions
 def model_chebyshev(x, a):
     t = 2 * (x - x[0]) / (x[-1] - x[0]) - 1
     V = chebvander(t, N - 1)
@@ -60,19 +62,31 @@ def residuals(a, x):
     return model_chebyshev(x, a) - target_function(x)
 
 
+a0 = np.random.random(N)  # degree 5 polynomial
+
+result = least_squares(residuals, a0, args=(x,))
+optimal_a = result.x
+
+y = model_chebyshev(x, optimal_a)
+
+
+# endregion
+
+
+# region finding nu derivative
+D_nu = S_matrix_vectorized(N=N, nu=2)
+phi = chebvander(t, N - 1)
+D_nu_phi = np.linalg.tensordot(D_nu, phi, axes=(1, 1))
+
+U = np.linalg.tensordot(optimal_a, D_nu_phi, axes=(0, 0))
+# endregion
+
+
 if __name__ == "__main__":
-    a0 = np.random.random(N)  # degree 5 polynomial
-
-    result = least_squares(residuals, a0, args=(x,))
-    optimal_a = result.x
-
-    y = model_chebyshev(x, optimal_a)
     plt.plot(x, y, label="Chebyshev fit")
     plt.plot(x, target_function(x), "--", label="Target")
     plt.legend()
     plt.show()
-
-    U = np.linalg.tensordot(optimal_a, D_nu_phi, axes=(0, 0))
 
     plt.figure()
     plt.plot(x, U)
