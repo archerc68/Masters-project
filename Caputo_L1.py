@@ -50,7 +50,7 @@ def L1_2(f, alpha, x):
     # GL kernals
     G1 = np.array([1, -1]) / h  # D^1
     G2 = np.array([1, -2, 1]) / (h * h)  # D^2
-
+    
     j = np.arange(len(x) + 1)
     a = np.diff(j ** (1 - alpha))
     b = bvals(j, alpha)
