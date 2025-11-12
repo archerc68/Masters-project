@@ -11,11 +11,12 @@ from scipy.special import factorial, gamma, rgamma
 "m:             No. Chebyshev poly. used"
 "alpha:         Leading fractional derivative order"
 "beta_k         RHS fractional derivative orders"
-"a_k:           RHS FD coefficients"
-"d_i:           d_i = y^(i)(0) -- Boundary conditions"
+"d_k:           RHS FD coefficients"
+"a_i:           a_i = y^(a_order[i])(0) -- Boundary conditions"
+"b_i:           b_i = y^(b_order[i])(L) -- Boundary conditions"
 "g(x):          RHS perturbing function"
 
-L = 2
+L = 1
 
 # FDE Params
 m = 25
@@ -25,26 +26,36 @@ k = len(beta_k) - 1
 
 
 def g(x):
-    return 1 + x
+    return x * x + 2 + 4 * np.sqrt(x / np.pi)
 
 
-a_k = np.array([-1, -1, 1])
+d_k = np.array([-1, -1, 1])
 
 
 n = int(np.floor(alpha))
 
-d_i = np.array([1, 1])
+# Boundary conditions
+
+# At x = 0
+a_order = np.array([0], dtype=int)
+a_i = np.array([0])
 
 
-assert alpha > np.max(beta_k)
-assert len(a_k) == k + 3
-assert len(d_i) == n
+# At x = L
+b_order = np.array([0], dtype=int)
+b_i = np.array([L**2])
 
 
 # region auxilliary parameters
 
+# Debug
+if len(beta_k) > 0:
+    assert alpha > np.max(beta_k)
+assert len(d_k) == k + 3
+assert len(a_i) + len(b_i) == n
+
 # Auxilliary parameters
-x = np.linspace(0, L, 100)
+x = np.linspace(0, L, 250)
 t = 2 * x / L - 1
 
 
@@ -112,6 +123,12 @@ def D(N, nu):
 # Phi(x)
 phi = chebvander(t, m).T
 phi_0 = phi[:, 0]
+phi_L = phi[:, -1]
+
+
+phi_BC = np.empty((n, m + 1))
+phi_BC[: len(a_i), :] = phi_0
+phi_BC[len(a_i) :, :] = phi_L
 
 
 # G_T
@@ -125,18 +142,22 @@ result = least_squares(G_guess_var, G_0_T)
 
 G_T = result.x
 
-# plt.figure()
-# plt.plot(x, g(x))
-# plt.plot(x, G_T @ phi)
-# plt.show()
+plt.figure()
+plt.plot(x, g(x), label="g(x)")
+plt.plot(x, G_T @ phi, linestyle="--", label="G^T phi(x)")
+plt.xlabel("x")
+plt.ylabel("y")
+plt.title("Fitted G^T (m = " + str(m) + ")")
+plt.legend()
+plt.show()
 
 
 # D'
 D_alpha = D(N=m, nu=alpha)
 D_beta_sum = np.zeros((m + 1, m + 1))
 for i in range(k):
-    D_beta_sum += a_k[i] * D(N=m, nu=beta_k[i])
-D_prime = D_alpha - D_beta_sum - a_k[k + 1] * np.eye(m + 1)
+    D_beta_sum += d_k[i] * D(N=m, nu=beta_k[i])
+D_prime = D_alpha - D_beta_sum - d_k[k + 1] * np.eye(m + 1)
 
 # Operating matrix
 Operator = np.empty((m + 1, m + 1))
@@ -146,10 +167,12 @@ Operator[:, :] = D_prime[:, :]
 D1 = D_1(N=m)
 
 # Boundary conditions
-Operator[:, m - n + 1] = phi_0
-if n >= 1:
-    for i in range(1, n):
-        Operator[:, m - n + 1 + i] = D1 @ Operator[:, m - n + i]
+D_order = np.concatenate((a_order, b_order), dtype=int)
+
+
+for i in range(n):
+    order = int(D_order[i])
+    Operator[:, m - n + 1 + i] = D(N=m, nu=order) @ phi_BC[i]
 
 # Inverse of operator matrix
 Operator_inv = np.linalg.inv(Operator)
@@ -157,7 +180,7 @@ Operator_inv = np.linalg.inv(Operator)
 # Column vector
 column_vec = np.empty(m + 1)
 column_vec[: m - n + 1] = G_T[: m - n + 1]
-column_vec[m - n + 1 :] = d_i
+column_vec[m - n + 1 :] = np.concatenate((a_i, b_i))
 
 
 y = column_vec @ Operator_inv @ phi
@@ -168,7 +191,7 @@ y = column_vec @ Operator_inv @ phi
 if __name__ == "__main__":
     plt.figure()
     plt.plot(x, y, label="Tau (spectral) method")
-    plt.plot(x, x + 1, linestyle="--", label="Analytical solution")
+    # plt.plot(x, x + 1, linestyle="--", label="Analytical solution")
     plt.legend()
     plt.xlabel("x")
     plt.ylabel("y")

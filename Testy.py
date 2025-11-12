@@ -14,5 +14,9 @@ def D_1(N):
     D_matrix *= 4/L
     return D_matrix
 
-
-D_1(6)
+D = D_1(5)
+print(D)
+# evals, evec = np.linalg.eig(D)
+print(np.linalg.det(D))
+# print(evals)
+# print(evec)
