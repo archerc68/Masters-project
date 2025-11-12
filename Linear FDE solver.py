@@ -16,20 +16,20 @@ from scipy.special import factorial, gamma, rgamma
 "b_i:           b_i = y^(b_order[i])(L) -- Boundary conditions"
 "g(x):          RHS perturbing function"
 
-L = 1
+L = 8*np.pi
 
 # FDE Params
 m = 25
 alpha = 2
-beta_k = np.array([1.5])
-k = len(beta_k) - 1
+beta_k = np.array([1])
+k = len(beta_k)
 
 
 def g(x):
-    return x * x + 2 + 4 * np.sqrt(x / np.pi)
+    return np.zeros_like(x)
 
-
-d_k = np.array([-1, -1, 1])
+omega = 1
+d_k = np.array([-1, -omega**2, 0])
 
 
 n = int(np.floor(alpha))
@@ -37,13 +37,13 @@ n = int(np.floor(alpha))
 # Boundary conditions
 
 # At x = 0
-a_order = np.array([0], dtype=int)
-a_i = np.array([0])
+a_order = np.array([0, 1], dtype=int)
+a_i = np.array([1, 0])
 
 
 # At x = L
-b_order = np.array([0], dtype=int)
-b_i = np.array([L**2])
+b_order = np.array([], dtype=int)
+b_i = np.array([])
 
 
 # region auxilliary parameters
@@ -51,7 +51,7 @@ b_i = np.array([L**2])
 # Debug
 if len(beta_k) > 0:
     assert alpha > np.max(beta_k)
-assert len(d_k) == k + 3
+assert len(d_k) == k + 2
 assert len(a_i) + len(b_i) == n
 
 # Auxilliary parameters
@@ -157,7 +157,7 @@ D_alpha = D(N=m, nu=alpha)
 D_beta_sum = np.zeros((m + 1, m + 1))
 for i in range(k):
     D_beta_sum += d_k[i] * D(N=m, nu=beta_k[i])
-D_prime = D_alpha - D_beta_sum - d_k[k + 1] * np.eye(m + 1)
+D_prime = D_alpha - D_beta_sum - d_k[k] * np.eye(m + 1)
 
 # Operating matrix
 Operator = np.empty((m + 1, m + 1))
