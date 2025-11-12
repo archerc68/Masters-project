@@ -1,8 +1,8 @@
+import matplotlib.pyplot as plt
 import numpy as np
 from numpy.polynomial.chebyshev import chebvander
 from scipy.optimize import least_squares
 from scipy.special import factorial, gamma, rgamma
-import matplotlib.pyplot as plt
 
 # ----------- Input parameters ---------- #
 "Solves FDEs (Caputo) using the spectral method (Doha et al.)"
@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 "L:             x in [0, L]"
 "m:             No. Chebyshev poly. used"
 "alpha:         Leading fractional derivative order"
-"beta_k         RHS fractional derivative orders"        
+"beta_k         RHS fractional derivative orders"
 "a_k:           RHS FD coefficients"
 "d_i:           d_i = y^(i)(0) -- Boundary conditions"
 "g(x):          RHS perturbing function"
@@ -22,7 +22,6 @@ m = 25
 alpha = 2
 beta_k = np.array([1.5])
 k = len(beta_k) - 1
-assert alpha > np.max(beta_k)
 
 
 def g(x):
@@ -30,11 +29,15 @@ def g(x):
 
 
 a_k = np.array([-1, -1, 1])
-assert len(a_k) == k + 3
+
 
 n = int(np.floor(alpha))
 
 d_i = np.array([1, 1])
+
+
+assert alpha > np.max(beta_k)
+assert len(a_k) == k + 3
 assert len(d_i) == n
 
 
@@ -49,11 +52,25 @@ t = 2 * x / L - 1
 
 
 # region D matrix
+def D_1(N):
+    D_matrix_T = np.zeros((N + 1, N + 1))
+    k = np.arange(1, N + 1, 2)
 
+    for i in k:
+        D_matrix_T += np.diagflat(np.arange(i, N + 1), i)
+    D_matrix = D_matrix_T.T
+    D_matrix[:, 0] /= 2
+
+    D_matrix *= 4 / L
+    return D_matrix
 
 def D(N, nu):
-    if nu == 0:
-        return np.eye(N+1)
+    if type(nu) is int:
+        D_matrix = np.eye(N+1)
+        D1 = D_1(N=N)
+        for _ in range(nu):
+            D_matrix = D1 @ D_matrix
+        return D_matrix
     else:
         LB = int(np.ceil(nu))
 
@@ -81,18 +98,9 @@ def D(N, nu):
             term = np.where(k <= i, num * den_inv, 0)
             D_matrix += term
         return D_matrix
-    
-def D_1(N):
-    D_matrix_T = np.zeros((N + 1, N + 1))
-    k = np.arange(1, N + 1, 2)
 
-    for i in k:
-        D_matrix_T += np.diagflat(np.arange(i, N + 1), i)
-    D_matrix = D_matrix_T.T
-    D_matrix[:, 0] /= 2
 
-    D_matrix *= 4/L
-    return D_matrix
+
 
 
 # endregion
@@ -101,15 +109,16 @@ def D_1(N):
 # region Solving FDE
 
 
-
 # Solving
 
 phi = chebvander(t, m).T
 phi_0 = phi[:, 0]
 
+
 # G_T
 def G_guess_var(G_0_T):
     return G_0_T @ phi - g(x)
+
 
 G_0_T = np.random.random(m + 1)
 
@@ -160,5 +169,5 @@ y = column_vec @ Operator_inv @ phi
 if __name__ == "__main__":
     plt.figure()
     plt.plot(x, y)
-    plt.plot(x, x+1)
+    plt.plot(x, x + 1)
     plt.show()
