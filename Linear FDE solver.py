@@ -64,9 +64,10 @@ def D_1(N):
     D_matrix *= 4 / L
     return D_matrix
 
+
 def D(N, nu):
     if type(nu) is int:
-        D_matrix = np.eye(N+1)
+        D_matrix = np.eye(N + 1)
         D1 = D_1(N=N)
         for _ in range(nu):
             D_matrix = D1 @ D_matrix
@@ -100,9 +101,6 @@ def D(N, nu):
         return D_matrix
 
 
-
-
-
 # endregion
 
 
@@ -111,6 +109,7 @@ def D(N, nu):
 
 # Solving
 
+# Phi(x)
 phi = chebvander(t, m).T
 phi_0 = phi[:, 0]
 
@@ -168,6 +167,9 @@ y = column_vec @ Operator_inv @ phi
 
 if __name__ == "__main__":
     plt.figure()
-    plt.plot(x, y)
-    plt.plot(x, x + 1)
+    plt.plot(x, y, label="Tau (spectral) method")
+    plt.plot(x, x + 1, linestyle="--", label="Analytical solution")
+    plt.legend()
+    plt.xlabel("x")
+    plt.ylabel("y")
     plt.show()
