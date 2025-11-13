@@ -21,12 +21,13 @@ L = 2
 # FDE Params
 m = 25
 alpha = 2
-beta_k = np.array([3/2])
+beta_k = np.array([3 / 2])
 k = len(beta_k)
 
 
 def g(x):
-    return x*x + 2 + 4*np.sqrt(x/np.pi)
+    return x * x + 2 + 4 * np.sqrt(x / np.pi)
+
 
 d_k = np.array([-1, -1, 1])
 
@@ -143,8 +144,8 @@ G_T = result.x
 w = 16
 h1 = 9
 h2 = w - h1
-s = (0.8 - 0.1)/w
-w, h1, h2 = w*s, h1*s, h2*s
+s = (0.8 - 0.1) / w
+w, h1, h2 = w * s, h1 * s, h2 * s
 
 plt.figure(1).add_axes((0.1, 0.3, 0.8, 0.6))
 gvals = g(x)
@@ -157,7 +158,7 @@ plt.legend()
 plt.figure(1).add_axes((0.1, 0.1, 0.8, 0.2))
 plt.xlabel("x")
 plt.ylabel("deviation")
-plt.plot(x, approx-gvals)
+plt.plot(x, approx - gvals)
 plt.plot(x, np.zeros_like(x), linestyle="--")
 plt.savefig("close.png")
 plt.show()
@@ -200,18 +201,17 @@ y = column_vec @ Operator_inv @ phi
 # endregion
 
 if __name__ == "__main__":
-    analytic = x*x
+    analytic = x * x
     plt.figure(2).add_axes((0.1, 0.3, 0.8, 0.6))
     plt.plot(x, y, label="Tau (spectral) method")
     plt.plot(x, analytic, linestyle="--", label="Analytical solution")
     plt.legend()
     plt.ylabel("y")
-    
+
     plt.figure(2).add_axes((0.1, 0.1, 0.8, 0.2))
     plt.xlabel("x")
     plt.ylabel("deviation")
-    plt.plot(x, y-analytic)
+    plt.plot(x, y - analytic)
     plt.plot(x, np.zeros_like(x), linestyle="--")
     plt.savefig("y.png")
     plt.show()
-    
