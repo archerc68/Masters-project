@@ -16,20 +16,19 @@ from scipy.special import factorial, gamma, rgamma
 "b_i:           b_i = y^(b_order[i])(L) -- Boundary conditions"
 "g(x):          RHS perturbing function"
 
-L = 8*np.pi
+L = 2
 
 # FDE Params
 m = 25
 alpha = 2
-beta_k = np.array([1])
+beta_k = np.array([3/2])
 k = len(beta_k)
 
 
 def g(x):
-    return np.zeros_like(x)
+    return x*x + 2 + 4*np.sqrt(x/np.pi)
 
-omega = 1
-d_k = np.array([-1, -omega**2, 0])
+d_k = np.array([-1, -1, 1])
 
 
 n = int(np.floor(alpha))
@@ -37,13 +36,13 @@ n = int(np.floor(alpha))
 # Boundary conditions
 
 # At x = 0
-a_order = np.array([0, 1], dtype=int)
-a_i = np.array([1, 0])
+a_order = np.array([0], dtype=int)
+a_i = np.array([0])
 
 
 # At x = L
-b_order = np.array([], dtype=int)
-b_i = np.array([])
+b_order = np.array([0], dtype=int)
+b_i = np.array([L**2])
 
 
 # region auxilliary parameters
@@ -141,14 +140,26 @@ G_0_T = np.random.random(m + 1)
 result = least_squares(G_guess_var, G_0_T)
 
 G_T = result.x
+w = 16
+h1 = 9
+h2 = w - h1
+s = (0.8 - 0.1)/w
+w, h1, h2 = w*s, h1*s, h2*s
 
-plt.figure()
-plt.plot(x, g(x), label="g(x)")
-plt.plot(x, G_T @ phi, linestyle="--", label="G^T phi(x)")
-plt.xlabel("x")
+plt.figure(1).add_axes((0.1, 0.3, 0.8, 0.6))
+gvals = g(x)
+plt.plot(x, gvals, label="g(x)")
+approx = G_T @ phi
+plt.plot(x, approx, linestyle="--", label="G^T phi(x)")
 plt.ylabel("y")
 plt.title("Fitted G^T (m = " + str(m) + ")")
 plt.legend()
+plt.figure(1).add_axes((0.1, 0.1, 0.8, 0.2))
+plt.xlabel("x")
+plt.ylabel("deviation")
+plt.plot(x, approx-gvals)
+plt.plot(x, np.zeros_like(x), linestyle="--")
+plt.savefig("close.png")
 plt.show()
 
 
@@ -189,10 +200,18 @@ y = column_vec @ Operator_inv @ phi
 # endregion
 
 if __name__ == "__main__":
-    plt.figure()
+    analytic = x*x
+    plt.figure(2).add_axes((0.1, 0.3, 0.8, 0.6))
     plt.plot(x, y, label="Tau (spectral) method")
-    # plt.plot(x, x + 1, linestyle="--", label="Analytical solution")
+    plt.plot(x, analytic, linestyle="--", label="Analytical solution")
     plt.legend()
-    plt.xlabel("x")
     plt.ylabel("y")
+    
+    plt.figure(2).add_axes((0.1, 0.1, 0.8, 0.2))
+    plt.xlabel("x")
+    plt.ylabel("deviation")
+    plt.plot(x, y-analytic)
+    plt.plot(x, np.zeros_like(x), linestyle="--")
+    plt.savefig("y.png")
     plt.show()
+    
