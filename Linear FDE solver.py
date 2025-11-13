@@ -4,7 +4,9 @@ from numpy.polynomial.chebyshev import chebvander
 from scipy.optimize import least_squares
 from scipy.special import factorial, gamma, rgamma
 
+
 # ----------- Input parameters ---------- #
+
 "Solves FDEs (Caputo) using the spectral method (Doha et al.) in the form:"
 
 
@@ -23,7 +25,8 @@ from scipy.special import factorial, gamma, rgamma
 "g(x):          RHS perturbing function"
 
 
-# FDE Params
+# ------------- FDE Params ------------- #
+
 L = 2
 m = 25
 alpha = 2
@@ -36,6 +39,9 @@ def g(x):
 
 d_k = np.array([-1, -1, 1])
 
+
+# -------- Boundary conditions --------- #
+
 # At x = 0
 a_order = np.array([0], dtype=int)
 a_i = np.array([0])
@@ -44,8 +50,6 @@ a_i = np.array([0])
 # At x = L
 b_order = np.array([0], dtype=int)
 b_i = np.array([L**2])
-
-# Boundary conditions
 
 
 # region auxilliary parameters
@@ -78,7 +82,7 @@ def D_1(N):
     D_matrix[:, 0] /= 2
 
     D_matrix *= 4 / L
-    return D_matrix
+    return np.array(D_matrix)
 
 
 def D(N, nu):
@@ -146,12 +150,8 @@ G_0_T = np.random.random(m + 1)
 result = least_squares(G_guess_var, G_0_T)
 
 G_T = result.x
-w = 16
-h1 = 9
-h2 = w - h1
-s = (0.8 - 0.1) / w
-w, h1, h2 = w * s, h1 * s, h2 * s
 
+# Plotting G^T
 plt.figure(1).add_axes((0.1, 0.3, 0.8, 0.6))
 gvals = g(x)
 plt.plot(x, gvals, label="g(x)")
@@ -165,7 +165,7 @@ plt.xlabel("x")
 plt.ylabel("deviation")
 plt.plot(x, approx - gvals)
 plt.plot(x, np.zeros_like(x), linestyle="--")
-plt.savefig("close.png")
+# plt.savefig("close.png")
 plt.show()
 
 
@@ -205,6 +205,9 @@ y = column_vec @ Operator_inv @ phi
 
 # endregion
 
+
+# ---------- Plotting output ---------- #
+
 if __name__ == "__main__":
     analytic = x * x
     plt.figure(2).add_axes((0.1, 0.3, 0.8, 0.6))
@@ -218,5 +221,5 @@ if __name__ == "__main__":
     plt.ylabel("deviation")
     plt.plot(x, y - analytic)
     plt.plot(x, np.zeros_like(x), linestyle="--")
-    plt.savefig("y.png")
+    # plt.savefig("y.png")
     plt.show()
