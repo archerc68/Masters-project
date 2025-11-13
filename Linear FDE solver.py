@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from numpy.polynomial.chebyshev import chebvander
 from scipy.optimize import least_squares
-from scipy.special import factorial, gamma, rgamma
+from scipy.special import loggamma
 
 
 # ----------- Input parameters ---------- #
@@ -25,36 +25,42 @@ from scipy.special import factorial, gamma, rgamma
 "g(x):          RHS perturbing function"
 
 
+# ------------- Constants -------------- #
+
+hbar = 6.62607015e-34 / (2 * np.pi)
+
 # ------------- FDE Params ------------- #
 
-L = 2
-m = 25
-alpha = 2
-beta_k = np.array([3 / 2])
+L = 4 * np.pi
+m = 50
+alpha = 1.85
+beta_k = np.array([])
 
 
+G = False
 def g(x):
-    return x * x + 2 + 4 * np.sqrt(x / np.pi)
+    return np.zeros_like(x)
 
 
-d_k = np.array([-1, -1, 1])
+omega = 2
+d_k = np.array([-omega**2, 0])
 
 
 # -------- Boundary conditions --------- #
 
 # At x = 0
-a_order = np.array([0], dtype=int)
-a_i = np.array([0])
+a_order = np.array([0, 1], dtype=int)
+a_i = np.array([0.1, 0])
 
 
 # At x = L
-b_order = np.array([0], dtype=int)
-b_i = np.array([L**2])
+b_order = np.array([], dtype=int)
+b_i = np.array([])
 
 
 # region auxilliary parameters
 
-n = int(np.floor(alpha))
+n = int(np.ceil(alpha))
 k = len(beta_k)
 
 # Debug
@@ -64,7 +70,7 @@ assert len(d_k) == k + 2
 assert len(a_i) + len(b_i) == n
 
 # Auxilliary parameters
-x = np.linspace(0, L, 250)
+x = np.linspace(0, L, 1000)
 t = 2 * x / L - 1
 
 
@@ -104,22 +110,24 @@ def D(N, nu):
 
         for k in range(LB, N + 1):
             sign = np.where((i - k) % 2 == 0, 1, -1)
-            num = sign * 2 * i * factorial(i + k - 1) * gamma(k - nu + 0.5)
-            den_inv = (
-                1
-                / eps_j
-                * 1
-                / (L**nu)
-                * rgamma(k + 0.5)
-                * rgamma(i - k + 1)
-                * rgamma(k - j - nu + 1)
-                * rgamma(k + j - nu + 1)
-            )
-            den_inv = np.nan_to_num(den_inv, 0)
-            term = np.where(k <= i, num * den_inv, 0)
-            D_matrix += term
-        return D_matrix
+            log_num = loggamma(i + k) + loggamma(k - nu + 0.5)
+            log_den = loggamma(k + 0.5) + loggamma(i - k + 1) + 2 * loggamma(k - nu + 1)
 
+            num_den = np.exp(log_num - log_den)
+
+            coeff = 2 * i * sign /(eps_j * L**nu)
+
+            a = k - nu + 1
+            factors = (a + j - 1) / (a - j)
+            factors[:, 0] = 1
+            term = np.cumprod(factors, axis=1)
+
+            iteration = num_den * coeff/term
+
+            iteration = np.where(k <= i, iteration, 0)
+            D_matrix += iteration
+
+        return D_matrix
 
 # endregion
 
@@ -141,32 +149,41 @@ phi_BC[len(a_i) :, :] = phi_L
 
 
 # G_T
-def G_guess_var(G_0_T):
-    return G_0_T @ phi - g(x)
 
 
-G_0_T = np.random.random(m + 1)
+if G:
+    def G_guess_var(G_0_T):
+        return G_0_T @ phi - g(x)
 
-result = least_squares(G_guess_var, G_0_T)
 
-G_T = result.x
+    G_0_T = np.random.random(m + 1)
 
-# Plotting G^T
-plt.figure(1).add_axes((0.1, 0.3, 0.8, 0.6))
-gvals = g(x)
-plt.plot(x, gvals, label="g(x)")
-approx = G_T @ phi
-plt.plot(x, approx, linestyle="--", label="G^T phi(x)")
-plt.ylabel("y")
-plt.title("Fitted G^T (m = " + str(m) + ")")
-plt.legend()
-plt.figure(1).add_axes((0.1, 0.1, 0.8, 0.2))
-plt.xlabel("x")
-plt.ylabel("deviation")
-plt.plot(x, approx - gvals)
-plt.plot(x, np.zeros_like(x), linestyle="--")
-# plt.savefig("close.png")
-plt.show()
+    result = least_squares(G_guess_var, G_0_T)
+
+    G_T = result.x
+
+    # Plotting G^T
+    plt.figure(1).add_axes((0.1, 0.3, 0.8, 0.6))
+    gvals = g(x)
+    plt.plot(x, gvals, label="g(x)")
+    approx = G_T @ phi
+    plt.plot(x, approx, linestyle="--", label="G^T phi(x)")
+    plt.ylabel("y")
+    plt.title("Fitted G^T (m = " + str(m) + ")")
+    plt.legend()
+    plt.figure(1).add_axes((0.1, 0.1, 0.8, 0.2))
+    plt.xlabel("x")
+    plt.ylabel("deviation")
+    plt.plot(x, approx - gvals)
+    plt.plot(x, np.zeros_like(x), linestyle="--")
+    # plt.savefig("close.png")
+    plt.show()
+
+else:
+    G_T = np.zeros(m+1)
+
+
+
 
 
 # D'
@@ -210,16 +227,16 @@ y = column_vec @ Operator_inv @ phi
 
 if __name__ == "__main__":
     analytic = x * x
-    plt.figure(2).add_axes((0.1, 0.3, 0.8, 0.6))
+    plt.figure(2)  # .add_axes((0.1, 0.3, 0.8, 0.6))
     plt.plot(x, y, label="Tau (spectral) method")
-    plt.plot(x, analytic, linestyle="--", label="Analytical solution")
+    # plt.plot(x, analytic, linestyle="--", label="Analytical solution")
     plt.legend()
     plt.ylabel("y")
 
-    plt.figure(2).add_axes((0.1, 0.1, 0.8, 0.2))
-    plt.xlabel("x")
-    plt.ylabel("deviation")
-    plt.plot(x, y - analytic)
-    plt.plot(x, np.zeros_like(x), linestyle="--")
-    # plt.savefig("y.png")
+    # plt.figure(2).add_axes((0.1, 0.1, 0.8, 0.2))
+    # plt.xlabel("x")
+    # plt.ylabel("deviation")
+    # plt.plot(x, y - analytic)
+    # plt.plot(x, np.zeros_like(x), linestyle="--")
+    # # plt.savefig("y.png")
     plt.show()
