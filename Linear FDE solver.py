@@ -5,7 +5,13 @@ from scipy.optimize import least_squares
 from scipy.special import factorial, gamma, rgamma
 
 # ----------- Input parameters ---------- #
-"Solves FDEs (Caputo) using the spectral method (Doha et al.)"
+"Solves FDEs (Caputo) using the spectral method (Doha et al.) in the form:"
+
+
+"D^alpha y(x) = sum_j [a_j D^beta_j y(x)] + a_(k+1) y(x) + a_(k+2) g(x)"
+
+"alpha > beta_0 > beta_1 > ... > beta_k > 0"
+
 
 "L:             x in [0, L]"
 "m:             No. Chebyshev poly. used"
@@ -16,13 +22,12 @@ from scipy.special import factorial, gamma, rgamma
 "b_i:           b_i = y^(b_order[i])(L) -- Boundary conditions"
 "g(x):          RHS perturbing function"
 
-L = 2
 
 # FDE Params
+L = 2
 m = 25
 alpha = 2
 beta_k = np.array([3 / 2])
-k = len(beta_k)
 
 
 def g(x):
@@ -30,11 +35,6 @@ def g(x):
 
 
 d_k = np.array([-1, -1, 1])
-
-
-n = int(np.floor(alpha))
-
-# Boundary conditions
 
 # At x = 0
 a_order = np.array([0], dtype=int)
@@ -45,8 +45,13 @@ a_i = np.array([0])
 b_order = np.array([0], dtype=int)
 b_i = np.array([L**2])
 
+# Boundary conditions
+
 
 # region auxilliary parameters
+
+n = int(np.floor(alpha))
+k = len(beta_k)
 
 # Debug
 if len(beta_k) > 0:
