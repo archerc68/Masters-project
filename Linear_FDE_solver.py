@@ -10,7 +10,7 @@ from scipy.special import loggamma, gammaln
 "Solves FDEs (Caputo) using the spectral method (Doha et al.) in the form:"
 
 
-"D^alpha y(x) = sum_j [a_j D^beta_j y(x)] + a_(k+1) y(x) + a_(k+2) g(x)"
+"D^alpha y(x) = sum_j [d_j D^beta_j y(x)] + d_(k+1) y(x) + d_(k+2) g(x)"
 
 "alpha > beta_0 > beta_1 > ... > beta_k > 0"
 
@@ -19,7 +19,7 @@ from scipy.special import loggamma, gammaln
 "m:             No. Chebyshev poly. used"
 "alpha:         Leading fractional derivative order"
 "beta_k         RHS fractional derivative orders"
-"d_k:           RHS FD coefficients"
+"d_j:           RHS FD coefficients"
 "a_i:           a_i = y^(a_order[i])(0) -- Boundary conditions"
 "b_i:           b_i = y^(b_order[i])(L) -- Boundary conditions"
 "g(x):          RHS perturbing function"
@@ -31,27 +31,28 @@ hbar = 6.62607015e-34 / (2 * np.pi)
 
 # ------------- FDE Params ------------- #
 
-L = 4*np.pi
+L = 4 * np.pi
 m = 20
 alpha = 1.85
 beta_k = np.array([])
 
 
 G = False
+
+
 def g(x):
-    return 0.1*np.cos(x)
-    
+    return np.cos(x)
 
 
 omega = 2
-d_k = np.array([-omega**2, 0])
+d_j = np.array([-(omega**2), 0])
 
 
 # -------- Boundary conditions --------- #
 
 # At x = 0
 a_order = np.array([0, 1], dtype=int)
-a_i = np.array([0.1, 0])
+a_i = np.array([1, 0])
 
 
 # At x = L
@@ -67,12 +68,17 @@ k = len(beta_k)
 # Debug
 if len(beta_k) > 0:
     assert alpha > np.max(beta_k)
-assert len(d_k) == k + 2
+assert len(d_j) == k + 2
 assert len(a_i) + len(b_i) == n
 
 # Auxilliary parameters
-x = np.linspace(0, L, 250)
-t = 2 * x / L - 1
+# x = np.linspace(0, L, 250)
+# t = 2 * x / L - 1
+
+N = 250
+j = np.arange(N + 1)
+t = -np.cos(np.pi * j / N)
+x = (t + 1) / 2
 
 
 # endregion
@@ -105,7 +111,7 @@ def D(N, nu):
         eps_j = np.ones_like(j)
         eps_j[:, 0] = 2
 
-        coeff = 2 * i /(eps_j * L**nu)
+        coeff = 2 * i / (eps_j * L**nu)
         sign = np.where((i - LB) % 2 == 0, 1, -1)
 
         for k in range(LB, N + 1):
@@ -117,25 +123,23 @@ def D(N, nu):
 
             num_den = np.exp(log_num - log_den)
 
-            # Corrective terms to allow logarithms 
+            # Corrective terms to allow logarithms
             # [loggamma(k - j - nu + 1) woud return errors]
             # Terms derived from gamma(a + j) * gamma(a - j)
 
-            
             factors = (a + j - 1) / (a - j)
             factors[:, 0] = 1
             term = np.cumprod(factors, axis=1)
 
-            iteration = num_den * coeff * sign/term
+            iteration = num_den * coeff * sign / term
             sign *= -1
-            
+
             # Masking values
             iteration = np.where(k <= i, iteration, 0)
             D_matrix += iteration
 
         return D_matrix
-    
-print(D(N=5, nu=1.5))
+
 
 # endregion
 
@@ -160,9 +164,9 @@ phi_BC[len(a_i) :, :] = phi_L
 
 
 if G:
+
     def G_guess_var(G_0_T):
         return G_0_T @ phi - g(x)
-
 
     G_0_T = np.random.random(m + 1)
 
@@ -188,15 +192,15 @@ if G:
     plt.show()
 
 else:
-    G_T = np.zeros(m+1)
+    G_T = np.zeros(m + 1)
 
 
 # D'
 D_alpha = D(N=m, nu=alpha)
 D_beta_sum = np.zeros((m + 1, m + 1))
 for i in range(k):
-    D_beta_sum += d_k[i] * D(N=m, nu=beta_k[i])
-D_prime = D_alpha - D_beta_sum - d_k[k] * np.eye(m + 1)
+    D_beta_sum += d_j[i] * D(N=m, nu=beta_k[i])
+D_prime = D_alpha - D_beta_sum - d_j[k] * np.eye(m + 1)
 
 # Operating matrix
 Operator = np.empty((m + 1, m + 1))
@@ -218,7 +222,7 @@ column_vec = np.empty(m + 1)
 column_vec[: m - n + 1] = G_T[: m - n + 1]
 column_vec[m - n + 1 :] = np.concatenate((a_i, b_i))
 
-C, *_ = np.linalg.lstsq(Operator.T, column_vec.T)
+C = np.linalg.solve(Operator.T, column_vec.T)
 y = C.T @ phi
 
 
