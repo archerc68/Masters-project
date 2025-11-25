@@ -2,7 +2,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 from numpy.polynomial.chebyshev import chebvander
 from scipy.optimize import least_squares
-from scipy.special import gammaln, loggamma
+from scipy.special import gammaln, loggamma, gamma
+from scipy.fftpack import dct
 
 # ----------- Input parameters ---------- #
 
@@ -30,28 +31,27 @@ hbar = 6.62607015e-34 / (2 * np.pi)
 
 # ------------- FDE Params ------------- #
 
-L = 4 * np.pi
+L = 2
 m = 20
 alpha = 1.85
 beta_k = np.array([])
 
 
-G = False
+G = True
 
 
 def g(x):
-    return x * x
+    return np.zeros_like(x)
 
 
-omega = 1
-d_j = np.array([-(omega**2), 0])
+d_j = np.array([0, 0])
 
 
 # -------- Boundary conditions --------- #
 
 # At x = 0
 a_order = np.array([0, 1], dtype=int)
-a_i = np.array([1, 0])
+a_i = np.array([1, 1])
 
 
 # At x = L
@@ -79,26 +79,27 @@ j = np.arange(N + 1)
 t = -np.cos(np.pi * j / N)
 x = (t + 1) * L / 2
 
-
 # endregion
 
 
 # region D matrix
-def D_1(N):
-    D_matrix_T = np.zeros((N + 1, N + 1))
-    k = np.arange(1, N + 1, 2)
-
-    for i in k:
-        D_matrix_T += np.diagflat(np.arange(i, N + 1), i)
-    D_matrix = D_matrix_T.T
-    D_matrix[:, 0] /= 2
-
-    D_matrix *= 4 / L
-    return np.array(D_matrix)
 
 
 def D(N, nu):
     if type(nu) is int:
+
+        def D_1(N):
+            D_matrix_T = np.zeros((N + 1, N + 1))
+            k = np.arange(1, N + 1, 2)
+
+            for i in k:
+                D_matrix_T += np.diagflat(np.arange(i, N + 1), i)
+            D_matrix = D_matrix_T.T
+            D_matrix[:, 0] /= 2
+
+            D_matrix *= 4 / L
+            return np.array(D_matrix)
+
         return np.linalg.matrix_power(D_1(N), nu)
     else:
         LB = int(np.ceil(nu))
@@ -107,7 +108,7 @@ def D(N, nu):
         j = np.arange(N + 1, dtype=int)[None, :]
         D_matrix = np.zeros((N + 1, N + 1))
 
-        eps_j = np.ones((N + 1, N + 1))
+        eps_j = np.ones_like(j)
         eps_j[:, 0] = 2
 
         coeff = 2 * i / (eps_j * L**nu)
@@ -147,7 +148,9 @@ def D(N, nu):
 
 
 # Solving
-def Solve_Tau():
+
+
+def Solve_Collection():
     # Phi(x)
     phi = chebvander(t, m).T
     phi_0 = phi[:, 0]
@@ -190,8 +193,7 @@ def Solve_Tau():
     D_prime = D_alpha - D_beta_sum - d_j[k] * np.eye(m + 1)
 
     # Operating matrix
-    Operator = np.empty((m + 1, m + 1))
-    Operator[:, :] = D_prime[:, :]
+    Operator = dct(D_prime)
 
     # Boundary conditions
     D_order = np.concatenate((a_order, b_order), dtype=int)
@@ -202,17 +204,15 @@ def Solve_Tau():
 
     # Column vector
     column_vec = np.empty(m + 1)
-    column_vec[: m - n + 1] = G_T[: m - n + 1]
+    column_vec[: m - n + 1] = g(x[: m - n + 1])
     column_vec[m - n + 1 :] = np.concatenate((a_i, b_i))
 
     C = np.linalg.solve(Operator.T, column_vec.T)
     y = C.T @ phi
-
     return y
 
 
-y = Solve_Tau()
-
+y = Solve_Collection()
 # endregion
 
 
@@ -220,16 +220,16 @@ y = Solve_Tau()
 
 if __name__ == "__main__":
     analytic = x * x
-    plt.figure(2)  # .add_axes((0.1, 0.3, 0.8, 0.6))
-    plt.plot(x, y, label="Tau (spectral) method")
-    # plt.plot(x, analytic, linestyle="--", label="Analytical solution")
+    plt.figure(2).add_axes((0.1, 0.3, 0.8, 0.6))
+    plt.plot(x, y, label="Psuedo-spectral method")
+    plt.plot(x, analytic, linestyle="--", label="Analytical solution")
     plt.legend()
     plt.ylabel("y")
 
-    # plt.figure(2).add_axes((0.1, 0.1, 0.8, 0.2))
-    # plt.xlabel("x")
-    # plt.ylabel("deviation")
-    # plt.plot(x, y - analytic)
-    # plt.plot(x, np.zeros_like(x), linestyle="--")
+    plt.figure(2).add_axes((0.1, 0.1, 0.8, 0.2))
+    plt.xlabel("x")
+    plt.ylabel("deviation")
+    plt.plot(x, y - analytic)
+    plt.plot(x, np.zeros_like(x), linestyle="--")
     # # plt.savefig("y.png")
     plt.show()
