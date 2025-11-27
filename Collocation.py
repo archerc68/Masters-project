@@ -2,8 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from numpy.polynomial.chebyshev import chebvander
 from scipy.optimize import least_squares
-from scipy.special import gammaln, loggamma, gamma
-from scipy.fftpack import dct
+from scipy.special import gammaln, loggamma
 
 # ----------- Input parameters ---------- #
 
@@ -31,27 +30,27 @@ hbar = 6.62607015e-34 / (2 * np.pi)
 
 # ------------- FDE Params ------------- #
 
-L = 2
+L = 4 * np.pi
 m = 20
 alpha = 1.85
 beta_k = np.array([])
 
 
-G = True
+G = False
 
 
 def g(x):
     return np.zeros_like(x)
 
 
-d_j = np.array([0, 0])
+d_j = np.array([-1, 0])
 
 
 # -------- Boundary conditions --------- #
 
 # At x = 0
 a_order = np.array([0, 1], dtype=int)
-a_i = np.array([1, 1])
+a_i = np.array([1, 0])
 
 
 # At x = L
@@ -86,7 +85,7 @@ x = (t + 1) * L / 2
 
 
 def D(N, nu):
-    if type(nu) is int:
+    if np.abs(round(nu) - nu) < 1e-2:
 
         def D_1(N):
             D_matrix_T = np.zeros((N + 1, N + 1))
@@ -166,10 +165,12 @@ def Solve_Collection():
         G_T = least_squares(lambda G_T: G_T @ phi - g(x), np.random.random(m + 1)).x
 
         # Plotting G^T
-        plt.figure(1).add_axes((0.1, 0.3, 0.8, 0.6))
+
         gvals = g(x)
-        plt.plot(x, gvals, label="g(x)")
         approx = G_T @ phi
+
+        plt.figure(1).add_axes((0.1, 0.3, 0.8, 0.6))
+        plt.plot(x, gvals, label="g(x)")
         plt.plot(x, approx, linestyle="--", label="G^T phi(x)")
         plt.ylabel("y")
         plt.title("Fitted G^T (m = " + str(m) + ")")
@@ -193,19 +194,30 @@ def Solve_Collection():
     D_prime = D_alpha - D_beta_sum - d_j[k] * np.eye(m + 1)
 
     # Operating matrix
-    Operator = dct(D_prime)
+    a = np.arange((m + 1))[:, None]
+    b = np.arange((m + 1))[None, :]
+    phi_cheb = np.cos(np.pi * a * b / m)
+    x_cheb = (L / 2) * (1 - np.cos(np.pi * np.arange(m + 1) / m))
 
-    # Boundary conditions
-    D_order = np.concatenate((a_order, b_order), dtype=int)
+    # Residual satisfied at interior points
+    Operator = D_prime @ phi_cheb
 
-    for i in range(n):
-        order = int(D_order[i])
-        Operator[:, m - n + 1 + i] = D(N=m, nu=order) @ phi_BC[i]
+    # Exterior points
+    coeff_i = np.concatenate((a_i, b_i))
+    coeff_order_i = np.concatenate((a_order, b_order))
+    coeff_len = len(coeff_i)
+    phi_i = np.empty((coeff_len, len(phi)))
+    phi_i[:len(a_i)], phi_i[len(a_i) + 1:] = phi_0, phi_L
+
+    exterior = np.arange(coeff_len)
+    exterior = np.where((exterior+1)%2==0, m-exterior+1, exterior)
 
     # Column vector
-    column_vec = np.empty(m + 1)
-    column_vec[: m - n + 1] = g(x[: m - n + 1])
-    column_vec[m - n + 1 :] = np.concatenate((a_i, b_i))
+    column_vec = g(x_cheb)
+
+    for i in range (coeff_len):
+        Operator[:, exterior[i]] = D(N=m, nu=int(coeff_order_i[i])) @ phi_i[i]
+        column_vec[exterior[i]] = coeff_i[i]
 
     C = np.linalg.solve(Operator.T, column_vec.T)
     y = C.T @ phi
@@ -219,17 +231,17 @@ y = Solve_Collection()
 # ---------- Plotting output ---------- #
 
 if __name__ == "__main__":
-    analytic = x * x
-    plt.figure(2).add_axes((0.1, 0.3, 0.8, 0.6))
+    # analytic = x * x
+    plt.figure(2)  # .add_axes((0.1, 0.3, 0.8, 0.6))
     plt.plot(x, y, label="Psuedo-spectral method")
-    plt.plot(x, analytic, linestyle="--", label="Analytical solution")
-    plt.legend()
-    plt.ylabel("y")
+    # plt.plot(x, analytic, linestyle="--", label="Analytical solution")
+    # plt.legend()
+    # plt.ylabel("y")
 
-    plt.figure(2).add_axes((0.1, 0.1, 0.8, 0.2))
-    plt.xlabel("x")
-    plt.ylabel("deviation")
-    plt.plot(x, y - analytic)
-    plt.plot(x, np.zeros_like(x), linestyle="--")
+    # plt.figure(2).add_axes((0.1, 0.1, 0.8, 0.2))
+    # plt.xlabel("x")
+    # plt.ylabel("deviation")
+    # plt.plot(x, y - analytic)
+    # plt.plot(x, np.zeros_like(x), linestyle="--")
     # # plt.savefig("y.png")
     plt.show()
