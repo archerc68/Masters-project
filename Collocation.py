@@ -1,7 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
 from numpy.polynomial.chebyshev import chebvander
-from scipy.optimize import least_squares
 from scipy.special import gammaln, loggamma
 
 # ----------- Input parameters ---------- #
@@ -24,10 +23,6 @@ from scipy.special import gammaln, loggamma
 "g(x):          RHS perturbing function"
 
 
-# ------------- Constants -------------- #
-
-hbar = 6.62607015e-34 / (2 * np.pi)
-
 # ------------- FDE Params ------------- #
 
 L = 4 * np.pi
@@ -35,15 +30,16 @@ m = 20
 alpha = 1.85
 beta_k = np.array([])
 
-
-G = False
+# Argument to pass g(x)
+G = 0
 
 
 def g(x):
-    return np.zeros_like(x)
+    return np.cos(x)
 
 
-d_j = np.array([-1, 0])
+omega = 1
+d_j = np.array([-(omega**2), -1])
 
 
 # -------- Boundary conditions --------- #
@@ -70,8 +66,6 @@ assert len(d_j) == k + 2
 assert len(a_i) + len(b_i) == n
 
 # Auxilliary parameters
-# x = np.linspace(0, L, 250)
-# t = 2 * x / L - 1
 
 N = 250
 j = np.arange(N + 1)
@@ -159,33 +153,6 @@ def Solve_Collection():
     phi_BC[: len(a_i), :] = phi_0
     phi_BC[len(a_i) :, :] = phi_L
 
-    # G_T
-
-    if G:
-        G_T = least_squares(lambda G_T: G_T @ phi - g(x), np.random.random(m + 1)).x
-
-        # Plotting G^T
-
-        gvals = g(x)
-        approx = G_T @ phi
-
-        plt.figure(1).add_axes((0.1, 0.3, 0.8, 0.6))
-        plt.plot(x, gvals, label="g(x)")
-        plt.plot(x, approx, linestyle="--", label="G^T phi(x)")
-        plt.ylabel("y")
-        plt.title("Fitted G^T (m = " + str(m) + ")")
-        plt.legend()
-        plt.figure(1).add_axes((0.1, 0.1, 0.8, 0.2))
-        plt.xlabel("x")
-        plt.ylabel("deviation")
-        plt.plot(x, approx - gvals)
-        plt.plot(x, np.zeros_like(x), linestyle="--")
-        # plt.savefig("close.png")
-        plt.show()
-
-    else:
-        G_T = np.zeros(m + 1)
-
     # D'
     D_alpha = D(N=m, nu=alpha)
     D_beta_sum = np.zeros((m + 1, m + 1))
@@ -207,15 +174,18 @@ def Solve_Collection():
     coeff_order_i = np.concatenate((a_order, b_order))
     coeff_len = len(coeff_i)
     phi_i = np.empty((coeff_len, len(phi)))
-    phi_i[:len(a_i)], phi_i[len(a_i) + 1:] = phi_0, phi_L
+    phi_i[: len(a_i)], phi_i[len(a_i) + 1 :] = phi_0, phi_L
 
     exterior = np.arange(coeff_len)
-    exterior = np.where((exterior+1)%2==0, m-exterior+1, exterior)
+    exterior = np.where((exterior + 1) % 2 == 0, m - exterior + 1, exterior)
 
     # Column vector
-    column_vec = g(x_cheb)
+    if G:
+        column_vec = d_j[-1] * g(x_cheb)
+    else:
+        column_vec = np.zeros_like(x_cheb)
 
-    for i in range (coeff_len):
+    for i in range(coeff_len):
         Operator[:, exterior[i]] = D(N=m, nu=int(coeff_order_i[i])) @ phi_i[i]
         column_vec[exterior[i]] = coeff_i[i]
 
