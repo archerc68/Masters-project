@@ -30,9 +30,9 @@ hbar = 6.62607015e-34 / (2 * np.pi)
 
 # ------------- FDE Params ------------- #
 
-L = 4 * np.pi
-m = 20
-alpha = 1.85
+L = 2 * np.pi
+m = 2
+alpha = 2
 beta_k = np.array([])
 
 
@@ -219,17 +219,17 @@ y = Solve_Tau()
 # ---------- Plotting output ---------- #
 
 if __name__ == "__main__":
-    analytic = x * x
-    plt.figure(2)  # .add_axes((0.1, 0.3, 0.8, 0.6))
+    analytic = np.cos(x)
+    plt.figure(2).add_axes((0.1, 0.3, 0.8, 0.6))
     plt.plot(x, y, label="Tau (spectral) method")
-    # plt.plot(x, analytic, linestyle="--", label="Analytical solution")
+    plt.plot(x, analytic, linestyle="--", label="Analytical solution")
     plt.legend()
     plt.ylabel("y")
 
-    # plt.figure(2).add_axes((0.1, 0.1, 0.8, 0.2))
-    # plt.xlabel("x")
-    # plt.ylabel("deviation")
-    # plt.plot(x, y - analytic)
-    # plt.plot(x, np.zeros_like(x), linestyle="--")
+    plt.figure(2).add_axes((0.1, 0.1, 0.8, 0.2))
+    plt.xlabel("x")
+    plt.ylabel("deviation")
+    plt.plot(x, y - analytic)
+    plt.plot(x, np.zeros_like(x), linestyle="--")
     # # plt.savefig("y.png")
     plt.show()

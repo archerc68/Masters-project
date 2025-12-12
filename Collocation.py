@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from numpy.polynomial.chebyshev import chebvander
 from scipy.special import gammaln, loggamma
+from scipy.fftpack import dct
 
 # ----------- Input parameters ---------- #
 
@@ -25,33 +26,32 @@ from scipy.special import gammaln, loggamma
 
 # ------------- FDE Params ------------- #
 
-L = 4 * np.pi
-m = 20
-alpha = 1.85
-beta_k = np.array([])
+L = 2
+m = 5
+alpha = 2
+beta_k = np.array([1.5])
 
 # Argument to pass g(x)
-G = 0
+G = 1
 
 
 def g(x):
-    return np.cos(x)
+    return x**2 + 2 + 4 * np.sqrt(x / np.pi)
 
 
-omega = 1
-d_j = np.array([-(omega**2), -1])
+d_j = np.array([-1, -1, 1])
 
 
 # -------- Boundary conditions --------- #
 
 # At x = 0
-a_order = np.array([0, 1], dtype=int)
-a_i = np.array([1, 0])
+a_order = np.array([0], dtype=int)
+a_i = np.array([0])
 
 
 # At x = L
-b_order = np.array([], dtype=int)
-b_i = np.array([])
+b_order = np.array([0], dtype=int)
+b_i = np.array([L**2])
 
 
 # region auxilliary parameters
@@ -163,11 +163,20 @@ def Solve_Collection():
     # Operating matrix
     a = np.arange((m + 1))[:, None]
     b = np.arange((m + 1))[None, :]
-    phi_cheb = np.cos(np.pi * a * b / m)
-    x_cheb = (L / 2) * (1 - np.cos(np.pi * np.arange(m + 1) / m))
+    i = np.arange(m + 1)
+    t_cheb = -np.cos(np.pi * (2 * i + 1) / (2 * m))
+    phi_cheb = chebvander(t_cheb, m).T
+    x_cheb = (L / 2) * (t_cheb + 1)
+
+    # phi_cheb = np.cos(np.pi * a * b / m)
+    # x_cheb = (L / 2) * (1 - np.cos(np.pi * np.arange(m + 1) / m))
+
+    print(D_prime.shape)
+    print("PCS = " + str(phi_cheb.size))
 
     # Residual satisfied at interior points
     Operator = D_prime @ phi_cheb
+    # Operator = dct(D_prime.T).T
 
     # Exterior points
     coeff_i = np.concatenate((a_i, b_i))
@@ -201,17 +210,17 @@ y = Solve_Collection()
 # ---------- Plotting output ---------- #
 
 if __name__ == "__main__":
-    # analytic = x * x
-    plt.figure(2)  # .add_axes((0.1, 0.3, 0.8, 0.6))
+    analytic = x * x
+    plt.figure(2).add_axes((0.1, 0.3, 0.8, 0.6))
     plt.plot(x, y, label="Psuedo-spectral method")
-    # plt.plot(x, analytic, linestyle="--", label="Analytical solution")
-    # plt.legend()
-    # plt.ylabel("y")
+    plt.plot(x, analytic, linestyle="--", label="Analytical solution")
+    plt.legend()
+    plt.ylabel("y")
 
-    # plt.figure(2).add_axes((0.1, 0.1, 0.8, 0.2))
-    # plt.xlabel("x")
-    # plt.ylabel("deviation")
-    # plt.plot(x, y - analytic)
-    # plt.plot(x, np.zeros_like(x), linestyle="--")
+    plt.figure(2).add_axes((0.1, 0.1, 0.8, 0.2))
+    plt.xlabel("x")
+    plt.ylabel("deviation")
+    plt.plot(x, y - analytic)
+    plt.plot(x, np.zeros_like(x), linestyle="--")
     # # plt.savefig("y.png")
     plt.show()
