@@ -80,7 +80,7 @@ x = (t + 1) * L / 2
 
 def D(N, nu):
     if np.abs(round(nu) - nu) < 1e-2:
-
+        nu = int(nu)
         def D_1(N):
             D_matrix_T = np.zeros((N + 1, N + 1))
             k = np.arange(1, N + 1, 2)

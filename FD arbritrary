@@ -1,8 +1,11 @@
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 from numpy.polynomial.chebyshev import chebvander
 from scipy.optimize import least_squares
 from scipy.special import gammaln, loggamma
+
+plt.rcParams["font.family"] = "Times New Roman"
 
 # ----------- Input parameters ---------- #
 
@@ -39,21 +42,22 @@ x = (t + 1) * L / 2
 
 
 # region D matrix
-def D_1(N):
-    D_matrix_T = np.zeros((N + 1, N + 1))
-    k = np.arange(1, N + 1, 2)
-
-    for i in k:
-        D_matrix_T += np.diagflat(np.arange(i, N + 1), i)
-    D_matrix = D_matrix_T.T
-    D_matrix[:, 0] /= 2
-
-    D_matrix *= 4 / L
-    return np.array(D_matrix)
-
-
 def D(N, nu):
-    if type(nu) is int:
+    if np.abs(round(nu) - nu) < 1e-3:
+        nu = int(nu)
+
+        def D_1(N):
+            D_matrix_T = np.zeros((N + 1, N + 1))
+            k = np.arange(1, N + 1, 2)
+
+            for i in k:
+                D_matrix_T += np.diagflat(np.arange(i, N + 1), i)
+            D_matrix = D_matrix_T.T
+            D_matrix[:, 0] /= 2
+
+            D_matrix *= 4 / L
+            return np.array(D_matrix)
+
         return np.linalg.matrix_power(D_1(N), nu)
     else:
         LB = int(np.ceil(nu))
@@ -62,7 +66,7 @@ def D(N, nu):
         j = np.arange(N + 1, dtype=int)[None, :]
         D_matrix = np.zeros((N + 1, N + 1))
 
-        eps_j = np.ones((N + 1, N + 1))
+        eps_j = np.ones_like(j)
         eps_j[:, 0] = 2
 
         coeff = 2 * i / (eps_j * L**nu)
@@ -128,12 +132,36 @@ if __name__ == "__main__":
     plt.show()
 
     # Differentiation matrix
-    D_alpha = D(N=m, nu=alpha)
+    def diff(nu):
+        D_alpha = D(N=m, nu=nu)
+        return F_T @ D_alpha @ phi
 
-    y = F_T @ D_alpha @ phi
+    N = 1000
+    alphas = np.linspace(0, 2, N)
+    _, ax = plt.subplots(1, 1, figsize=(8, 6))
+    cmap = plt.get_cmap("plasma_r", N)
+    for i in range(N):
+        y_i = diff(alphas[i])
+        ax.plot(x, y_i, color=cmap(i))
 
-    plt.figure
-    plt.plot(x, y)
+    # Normalizer
+    norm = mpl.colors.Normalize(vmin=alphas[0], vmax=alphas[-1])
+
+    # creating ScalarMappable
+    sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+    sm.set_array([])
+
+    plt.colorbar(
+        sm,
+        ticks=np.linspace(alphas[0], alphas[-1], 5),
+        ax=ax,
+        label="Fractional derivative",
+    )
+
+    plt.title("Fractional derivatives of f(x)")
+    plt.xlabel("x")
+    ax.set_ylabel(r"$D^{\alpha}f(x)$")
+    # plt.savefig("FD_arbritrary.png", dpi=1000)
     plt.show()
 
 
