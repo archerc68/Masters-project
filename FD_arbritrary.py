@@ -20,7 +20,7 @@ alpha = 0.5
 
 
 def f(x):
-    return np.cos(x)
+    return x**2 - x - 1
 
 
 # region auxilliary parameters
@@ -32,18 +32,16 @@ n = int(np.ceil(alpha))
 # x = np.linspace(0, L, 250)
 # t = 2 * x / L - 1
 
-N = 250
+N = 20
 j = np.arange(N + 1)
-t = -np.cos(np.pi * j / N)
+t = -np.cos(np.pi * (2 * j + 1) / (2 * (m + 1)))
 x = (t + 1) * L / 2
-
-
 # endregion
 
 
 # region D matrix
 def D(N, nu):
-    if np.abs(round(nu) - nu) < 1e-3:
+    if np.isclose(round(nu), nu):
         nu = int(nu)
 
         def D_1(N):
@@ -111,8 +109,8 @@ if __name__ == "__main__":
     phi = chebvander(t, m).T
 
     # F_T
-
-    F_T = least_squares(lambda F_T: F_T @ phi - f(x), np.random.random(m + 1)).x
+    F_T = 2 / (N + 1) * f(x) @ phi.T
+    F_T[0] *= 1 / 2
 
     # Plotting F^T
     plt.figure(1).add_axes((0.1, 0.3, 0.8, 0.6))
