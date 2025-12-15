@@ -14,27 +14,22 @@ plt.rcParams["font.family"] = "Times New Roman"
 # ------------- FDE Params ------------- #
 
 L = 2 * np.pi
-N = 20
-alpha = 0.5
+N = 15
 
 
 def f(x):
     return np.cos(x)
 
 
-# region auxilliary parameters
-
-n = int(np.ceil(alpha))
-
-
-# Auxilliary parameters
-# x = np.linspace(0, L, 250)
-# t = 2 * x / L - 1
-
+# Calculated points
 j = np.arange(N + 1)
 t = -np.cos(np.pi * (2 * j + 1) / (2 * (N + 1)))
 x = (t + 1) * L / 2
-# endregion
+
+# Interpolated points
+t_inter = np.linspace(-1, 1, 250)
+x_inter = (t_inter + 1) * L / 2
+
 
 
 # region D matrix
@@ -105,6 +100,7 @@ def D(N, nu):
 if __name__ == "__main__":
     # Phi(x)
     phi = chebvander(t, N).T
+    phi_inter = chebvander(t_inter, N).T
 
     # F_T
     F_T = 2 / (N + 1) * f(x) @ phi.T
@@ -112,33 +108,28 @@ if __name__ == "__main__":
 
     # Plotting F^T
     plt.figure(1).add_axes((0.1, 0.3, 0.8, 0.6))
-    fvals = f(x)
-    plt.plot(x, fvals, label="f(x)")
-    approx = F_T @ phi
-    plt.plot(x, approx, linestyle="--", label="F^T phi(x)")
+    fvals = f(x_inter)
+    plt.plot(x_inter, fvals, label="f(x)")
+    approx = F_T @ phi_inter
+    plt.plot(x_inter, approx, linestyle="--", label="F^T phi(x)")
     plt.ylabel("y")
     plt.title("Fitted F^T (N = " + str(N) + ")")
     plt.legend()
     plt.figure(1).add_axes((0.1, 0.1, 0.8, 0.2))
     plt.xlabel("x")
     plt.ylabel("deviation")
-    plt.plot(x, approx - fvals)
-    plt.plot(x, np.zeros_like(x), linestyle="--")
+    plt.plot(x_inter, approx - fvals)
+    plt.plot(x_inter, np.zeros_like(x_inter), linestyle="--")
     # plt.savefig("close.png")
     plt.show()
-
-    # Interpolated points
-    t_inter = np.linspace(-1, 1, 100)
-    x_inter = (t_inter + 1) * L / 2
 
     # Differentiation matrix
     def diff(alpha):
         D_alpha = D(N=N, nu=alpha)
-
-        return F_T @ D_alpha @ chebvander(t_inter, N).T
+        return F_T @ D_alpha @ phi_inter
 
     plots = 1000
-    alphas = np.linspace(0, 2, plots)
+    alphas = np.linspace(1, 3, plots)
     _, ax = plt.subplots(1, 1, figsize=(8, 6))
     cmap = plt.get_cmap("plasma_r", plots)
     for i in range(plots):
