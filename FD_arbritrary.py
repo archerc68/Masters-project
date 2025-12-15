@@ -2,7 +2,6 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 from numpy.polynomial.chebyshev import chebvander
-from scipy.optimize import least_squares
 from scipy.special import gammaln, loggamma
 
 plt.rcParams["font.family"] = "Times New Roman"
@@ -15,12 +14,12 @@ plt.rcParams["font.family"] = "Times New Roman"
 # ------------- FDE Params ------------- #
 
 L = 2 * np.pi
-m = 20
+N = 20
 alpha = 0.5
 
 
 def f(x):
-    return x**2 - x - 1
+    return np.cos(x)
 
 
 # region auxilliary parameters
@@ -32,9 +31,8 @@ n = int(np.ceil(alpha))
 # x = np.linspace(0, L, 250)
 # t = 2 * x / L - 1
 
-N = 20
 j = np.arange(N + 1)
-t = -np.cos(np.pi * (2 * j + 1) / (2 * (m + 1)))
+t = -np.cos(np.pi * (2 * j + 1) / (2 * (N + 1)))
 x = (t + 1) * L / 2
 # endregion
 
@@ -106,7 +104,7 @@ def D(N, nu):
 # Solving
 if __name__ == "__main__":
     # Phi(x)
-    phi = chebvander(t, m).T
+    phi = chebvander(t, N).T
 
     # F_T
     F_T = 2 / (N + 1) * f(x) @ phi.T
@@ -119,7 +117,7 @@ if __name__ == "__main__":
     approx = F_T @ phi
     plt.plot(x, approx, linestyle="--", label="F^T phi(x)")
     plt.ylabel("y")
-    plt.title("Fitted F^T (m = " + str(m) + ")")
+    plt.title("Fitted F^T (N = " + str(N) + ")")
     plt.legend()
     plt.figure(1).add_axes((0.1, 0.1, 0.8, 0.2))
     plt.xlabel("x")
@@ -129,18 +127,23 @@ if __name__ == "__main__":
     # plt.savefig("close.png")
     plt.show()
 
-    # Differentiation matrix
-    def diff(nu):
-        D_alpha = D(N=m, nu=nu)
-        return F_T @ D_alpha @ phi
+    # Interpolated points
+    t_inter = np.linspace(-1, 1, 100)
+    x_inter = (t_inter + 1) * L / 2
 
-    N = 1000
-    alphas = np.linspace(0, 2, N)
+    # Differentiation matrix
+    def diff(alpha):
+        D_alpha = D(N=N, nu=alpha)
+
+        return F_T @ D_alpha @ chebvander(t_inter, N).T
+
+    plots = 1000
+    alphas = np.linspace(0, 2, plots)
     _, ax = plt.subplots(1, 1, figsize=(8, 6))
-    cmap = plt.get_cmap("plasma_r", N)
-    for i in range(N):
+    cmap = plt.get_cmap("plasma_r", plots)
+    for i in range(plots):
         y_i = diff(alphas[i])
-        ax.plot(x, y_i, color=cmap(i))
+        ax.plot(x_inter, y_i, color=cmap(i))
 
     # Normalizer
     norm = mpl.colors.Normalize(vmin=alphas[0], vmax=alphas[-1])
