@@ -13,7 +13,7 @@ plt.rcParams["font.family"] = "Times New Roman"
 
 # ------------- FDE Params ------------- #
 
-L = 2 * np.pi
+L = 4 * np.pi
 N = 15
 
 
@@ -27,7 +27,8 @@ t = -np.cos(np.pi * (2 * j + 1) / (2 * (N + 1)))
 x = (t + 1) * L / 2
 
 # Interpolated points
-t_inter = np.linspace(-1, 1, 250)
+inter = 250
+t_inter = np.linspace(-1, 1, inter)
 x_inter = (t_inter + 1) * L / 2
 
 
@@ -129,11 +130,15 @@ if __name__ == "__main__":
         return F_T @ D_alpha @ phi_inter
 
     plots = 1000
-    alphas = np.linspace(1, 3, plots)
+    epsilon = 1e-2
+    alphas = np.linspace(0 + epsilon, 2 - epsilon , plots)
     _, ax = plt.subplots(1, 1, figsize=(8, 6))
     cmap = plt.get_cmap("plasma_r", plots)
+
+    y_pi_two = np.empty(plots)
     for i in range(plots):
         y_i = diff(alphas[i])
+        y_pi_two[i] = y_i[int(inter*np.pi/(2*L))]
         ax.plot(x_inter, y_i, color=cmap(i))
 
     # Normalizer
@@ -153,8 +158,22 @@ if __name__ == "__main__":
     plt.title("Fractional derivatives of f(x)")
     plt.xlabel("x")
     ax.set_ylabel(r"$D^{\alpha}f(x)$")
-    # plt.savefig("FD_arbritrary.png", dpi=1000)
+    plt.savefig("Cosine_FD2.png", dpi=1000)
     plt.show()
+
+    plt.figure
+    Phase_Shift = np.cos(np.pi/2 + alphas*np.pi/2)
+
+    plt.plot(alphas, y_pi_two, label="Caputo")
+    plt.plot(alphas, Phase_Shift, linestyle="--", label="Phase shift")
+    plt.fill_between(alphas, y_pi_two, Phase_Shift, alpha=0.25, color="grey", hatch=".")
+    plt.xlabel("Alpha")
+    plt.ylabel(r"$^CD^{\alpha}\cos{(\pi/2)}$")
+    plt.title("Caputo FD at " + r"$x=\pi/2$")
+    plt.legend()
+    plt.savefig("Phase_Shift2.png", dpi=1000)
+    plt.show()
+
 
 
 # endregion
