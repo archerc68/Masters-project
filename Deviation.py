@@ -7,8 +7,11 @@ plt.rcParams["font.family"] = "Times New Roman"
 
 # Plots
 plotA = False
-plotB = True
+plotB = False
 plotC = False
+plotD = True
+
+Save_figure = True
 
 
 a_2s = np.linspace(-2, 2, 250)
@@ -29,11 +32,10 @@ if plotA:
         vars[i] = var(a_2s[i])
 
     min_var = np.min(vars)
-    print(min_var)
 
     mask = np.where(vars == min_var, 1, 0)
     min_a_2 = np.dot(mask, a_2s)
-    print(min_a_2)
+    print("Minimum = (" + str(min_a_2) + ", " + str(min_var) + ")")
 
     plt.figure()
     plt.plot(a_2s, vars)
@@ -42,7 +44,8 @@ if plotA:
     plt.ylabel(r"$\sqrt{\int_{-1}^1 | u_3(x; a_2) - \cos{(x)} |^2dx}$")
     plt.title(r"$u_3(x; a_2)$ RMS Error")
     plt.legend()
-    plt.savefig("u_3_error.png", dpi=1000)
+    if Save_figure:
+        plt.savefig("u_3_error.png", dpi=1000)
     plt.show()
 
 if plotB:
@@ -80,7 +83,8 @@ if plotB:
     plt.xlabel(r"$a_2$")
     plt.ylabel(r"$\bar{R}(a_2)$")
     plt.title("Remainder error")
-    plt.savefig("remainder minimisation.png", dpi=1000)
+    if Save_figure:
+        plt.savefig("remainder minimisation.png", dpi=1000)
     plt.show()
 
 
@@ -94,10 +98,57 @@ if plotC:
 
     plt.plot(x, Taylor(x), label=r"$1-x^2/2$")
     plt.plot(x, trunc(-21 / 26, x), label=r"$u_3(x;a_2=-21/26)$")
-    plt.plot(x, trunc(-62 / 99, x), label=r"$u_3(x;a_2=-62/99)$")
+    plt.plot(x, trunc(-0.23293172690763075, x), label=r"$u_3(x;a_2=-0.233...)$")
     plt.xlabel("x")
     plt.ylabel("y")
     plt.title(r"Analytic and numerical solutions for $\frac{d^2y}{dx^2} + y = 0$")
     plt.legend()
-    plt.savefig("Approximations.png", dpi=1000)
+    if Save_figure:
+        plt.savefig("Approximations.png", dpi=1000)
     plt.show()
+
+
+if plotD:
+    x = np.linspace(-1, 1, 250)
+    
+
+    def Tau(x):
+        return 1 - 2 * x**2 / 5
+    
+    Tau_y, cos_y = Tau(x), np.cos(x)
+
+    # Mean error
+
+    mean_err = quad(lambda x: (Tau(x) - np.cos(x)), -1, 1)[0]/2
+    print(mean_err)
+
+    # Plotting
+
+    plt.figure(1).add_axes((0.1, 0.3, 0.8, 0.6))
+
+    plt.plot(x, Tau_y, label=r"$1-2x^2/5$", color ="r")
+    plt.plot(x, cos_y, linestyle="--", label=r"$\cos{(x)}$", color="black")
+    plt.fill_between(x, Tau_y, cos_y, alpha=0.5)
+
+    plt.xlabel("x")
+    plt.ylabel("y")
+    plt.title(r"Tau method solution for $\frac{d^2y}{dx^2} + y = 0$")
+    plt.legend()
+
+    plt.figure(1).add_axes((0.1, 0.1, 0.8, 0.2))
+
+    plt.plot(x, Tau_y - cos_y, color="r")
+    plt.plot(x, np.zeros_like(x), linestyle="--", color="black")
+    plt.fill_between(x, Tau_y-cos_y, np.zeros_like(x), alpha=0.5)
+    plt.plot(x, mean_err*np.ones_like(x), label="Mean error")
+
+    plt.xlabel("x")
+    plt.ylabel("Error")
+
+    plt.text(-1 + 0.01, mean_err + 0.002, "Mean error")
+
+    if Save_figure:
+        plt.savefig("u3.png", dpi=1000)
+    plt.show()
+
+    
