@@ -1,6 +1,5 @@
 import matplotlib.pyplot as plt
 import numpy as np
-from numpy import ma
 from numpy.polynomial.chebyshev import chebvander
 from scipy.integrate import quad
 from scipy.optimize import curve_fit
@@ -82,14 +81,14 @@ def exp_fit(x, a, b):
 def exp_fit_log(x, a, b):
     return np.log(a) - b * x
 
+mask = mean_err_n > 1e-18
+Ns = Ns[mask]
+mean_err_n = mean_err_n[mask]
 
-mask = np.where(mean_err_n < 1e-20, 0, 1)
-Ns = ma.masked_values(Ns, mask)
-mean_err_n = ma.masked_values(mean_err_n, mask)
 
-fp_err = 13
-
-a_fit, b_fit = curve_fit(exp_fit, Ns[:fp_err], mean_err_n[:fp_err])[0]
+fp_err = 8
+print(mean_err_n[:fp_err])
+a_fit, b_fit = curve_fit(exp_fit_log, Ns[:fp_err], np.log(mean_err_n[:fp_err]))[0]
 
 N_cont = np.array([Ns[0], Ns[fp_err]])
 label = str(round(a_fit, 2)) + r" $exp($" + str(-round(b_fit, 2)) + r"$N)$"
