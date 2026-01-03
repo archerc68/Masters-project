@@ -119,8 +119,9 @@ if plotD:
 
     # Mean error
 
-    mean_err = quad(lambda x: (Tau(x) - np.cos(x)), -1, 1)[0]/2
-    print(mean_err)
+    MS_err = quad(lambda x: (Tau(x) - np.cos(x))**2, -1, 1)[0]/2
+    RMS_err = np.sqrt(MS_err)
+    print(RMS_err)
 
     # Plotting
 
@@ -140,12 +141,12 @@ if plotD:
     plt.plot(x, Tau_y - cos_y, color="r")
     plt.plot(x, np.zeros_like(x), linestyle="--", color="black")
     plt.fill_between(x, Tau_y-cos_y, np.zeros_like(x), alpha=0.5)
-    plt.plot(x, mean_err*np.ones_like(x), label="Mean error")
+    plt.plot(x, RMS_err*np.ones_like(x))
 
     plt.xlabel("x")
     plt.ylabel("Error")
 
-    plt.text(-1 + 0.01, mean_err + 0.002, "Mean error")
+    plt.text(-1 + 0.01, RMS_err + 0.002, "RMS error")
 
     if Save_figure:
         plt.savefig("u3.png", dpi=1000)

@@ -4,6 +4,8 @@ from numpy.polynomial.chebyshev import chebvander
 from scipy.integrate import quad
 from scipy.optimize import curve_fit
 
+plt.rcParams["font.family"] = "Times New Roman"
+
 n = 2
 x_j = np.array([0, 0])
 alpha_j = np.array([0, 1])
@@ -45,9 +47,9 @@ def solve(N, x_y):
         return a_i @ chebvander(ts, N - 1).T
 
     def approx_err(x):
-        return approx(x) - np.cos(x)
+        return (approx(x) - np.cos(x))**2
 
-    mean_err = quad(approx_err, 0, 1)[0]
+    mean_err = np.sqrt(quad(approx_err, 0, 1)[0])
 
     if x_y:
         return x, approx(x), mean_err
@@ -64,12 +66,18 @@ def solve(N, x_y):
 # plt.plot(x, np.cos(x))
 # plt.show()
 
+def sf(x, sig_figs):
+    leading_order = 10**int(np.floor(np.log10(np.abs(x))))
+    terms = np.round(x/leading_order, sig_figs)
+    return terms*leading_order
+
+
 
 # U_N plot
 plt.figure()
 plt.semilogy()
 
-Ns = np.arange(2, 30)
+Ns = np.arange(2, 250)
 solves = np.vectorize(solve)
 mean_err_n = solves(Ns, x_y=False)
 
@@ -86,20 +94,40 @@ Ns = Ns[mask]
 mean_err_n = mean_err_n[mask]
 
 
-fp_err = 8
-print(mean_err_n[:fp_err])
+fp_err = 11
 a_fit, b_fit = curve_fit(exp_fit_log, Ns[:fp_err], np.log(mean_err_n[:fp_err]))[0]
 
-N_cont = np.array([Ns[0], Ns[fp_err]])
-label = str(round(a_fit, 2)) + r" $exp($" + str(-round(b_fit, 2)) + r"$N)$"
+print("Error half life = " + str(np.log(2)/b_fit))
+print("Decay = " + str(100 - 100*np.exp(-b_fit)) + "%")
+
+N_exp = np.array([Ns[0], Ns[fp_err]])
+label_exp = str(sf(a_fit, 2)) + r" $exp($" + str(-sf(b_fit, 2)) + r"$N)$"
 
 plt.plot(
-    N_cont, exp_fit(N_cont, a_fit, b_fit), label=label, linestyle="--", color="black"
+    N_exp, exp_fit(N_exp, a_fit, b_fit), label=label_exp, linestyle="--", color="black"
 )
+
+a_round, b_round = curve_fit(exp_fit_log, Ns[fp_err:], np.log(mean_err_n[fp_err:]))[0]
+
+N_round = np.array([Ns[fp_err], Ns[-1]])
+label_round = str(sf(a_round, 2)) + r" $exp($" + str(-sf(b_round, 2)) + r"$N)$"
+
+plt.plot(
+    N_round, exp_fit(N_round, a_round, b_round), label=label_round, linestyle=":", color="black"
+)
+
+
 plt.scatter(Ns, mean_err_n, color="red")
 
+midway_exp = np.sqrt(mean_err_n[0]*mean_err_n[fp_err])
+midway_round = np.sqrt(mean_err_n[fp_err]*mean_err_n[-1])
+
+plt.text(fp_err+10, midway_exp, "Exponential convergence")
+plt.text(0.5*(fp_err + Ns[-1])-15, midway_round*10**1.5, "Round off error")
+
 plt.xlabel(r"$N$")
-plt.ylabel("Mean Approximation Error")
+plt.ylabel("RMS Error")
 plt.title(r"Error in $U_N$ approximation")
 plt.legend()
+plt.savefig("U_N_approx_cosine.png", dpi=1000)
 plt.show()
