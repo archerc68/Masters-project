@@ -11,6 +11,8 @@ x_j = np.array([0, 0])
 alpha_j = np.array([0, 1])
 d_j = np.array([1, 0])
 
+L = 2*np.pi
+
 assert len(alpha_j) == n & len(alpha_j) == len(d_j)
 
 
@@ -24,7 +26,7 @@ def diff_mat(alpha, N):
     D_matrix = D_matrix_T.T
     D_matrix[:, 0] /= 2
 
-    D_matrix *= 4
+    D_matrix *= 4 / L
     return np.linalg.matrix_power(D_matrix, alpha)
 
 
@@ -43,13 +45,13 @@ def solve(N, x_y):
     x = np.linspace(0, 1, 250)
 
     def approx(x):
-        ts = 2 * x - 1
+        ts = 2 * x / L - 1
         return a_i @ chebvander(ts, N - 1).T
 
     def approx_err(x):
         return (approx(x) - np.cos(x))**2
 
-    mean_err = np.sqrt(quad(approx_err, 0, 1)[0])
+    mean_err = np.sqrt(quad(approx_err, 0, L)[0])
 
     if x_y:
         return x, approx(x), mean_err
@@ -57,19 +59,12 @@ def solve(N, x_y):
         return mean_err
 
 
-# # U_3 plot
-# x, y, mean_err = solve(5, x_y=True)
+def sf(x, p=2):
+    x = np.asarray(x)
+    x_positive = np.where(np.isfinite(x) & (x != 0), np.abs(x), 10**(p-1))
+    mags = 10 ** (p - 1 - np.floor(np.log10(x_positive)))
+    return np.round(x * mags) / mags
 
-
-# plt.figure()
-# plt.plot(x, y)
-# plt.plot(x, np.cos(x))
-# plt.show()
-
-def sf(x, sig_figs):
-    leading_order = 10**int(np.floor(np.log10(np.abs(x))))
-    terms = np.round(x/leading_order, sig_figs)
-    return terms*leading_order
 
 
 
@@ -94,14 +89,14 @@ Ns = Ns[mask]
 mean_err_n = mean_err_n[mask]
 
 
-fp_err = 11
+fp_err = 20
 a_fit, b_fit = curve_fit(exp_fit_log, Ns[:fp_err], np.log(mean_err_n[:fp_err]))[0]
 
 print("Error half life = " + str(np.log(2)/b_fit))
 print("Decay = " + str(100 - 100*np.exp(-b_fit)) + "%")
 
 N_exp = np.array([Ns[0], Ns[fp_err]])
-label_exp = str(sf(a_fit, 2)) + r" $exp($" + str(-sf(b_fit, 2)) + r"$N)$"
+label_exp = str(sf(a_fit)) + r" $exp($" + str(-sf(b_fit)) + r"$N)$"
 
 plt.plot(
     N_exp, exp_fit(N_exp, a_fit, b_fit), label=label_exp, linestyle="--", color="black"
@@ -110,14 +105,14 @@ plt.plot(
 a_round, b_round = curve_fit(exp_fit_log, Ns[fp_err:], np.log(mean_err_n[fp_err:]))[0]
 
 N_round = np.array([Ns[fp_err], Ns[-1]])
-label_round = str(sf(a_round, 2)) + r" $exp($" + str(-sf(b_round, 2)) + r"$N)$"
+label_round = str(sf(a_round)) + r" $exp($" + str(-sf(b_round)) + r"$N)$"
 
 plt.plot(
     N_round, exp_fit(N_round, a_round, b_round), label=label_round, linestyle=":", color="black"
 )
 
 
-plt.scatter(Ns, mean_err_n, color="red")
+plt.scatter(Ns, mean_err_n, color="red", alpha=0.5)
 
 midway_exp = np.sqrt(mean_err_n[0]*mean_err_n[fp_err])
 midway_round = np.sqrt(mean_err_n[fp_err]*mean_err_n[-1])
@@ -127,7 +122,7 @@ plt.text(0.5*(fp_err + Ns[-1])-15, midway_round*10**1.5, "Round off error")
 
 plt.xlabel(r"$N$")
 plt.ylabel("RMS Error")
-plt.title(r"Error in $U_N$ approximation")
+plt.title(r"Error in $u_N$ approximation of $\cos{(x)}$")
 plt.legend()
-plt.savefig("U_N_approx_cosine.png", dpi=1000)
+# plt.savefig("U_N_approx_cosine.png", dpi=1000)
 plt.show()
