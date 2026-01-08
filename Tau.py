@@ -3,6 +3,8 @@ import numpy as np
 from numpy.polynomial.chebyshev import chebvander
 from scipy.optimize import least_squares
 from scipy.special import gammaln, loggamma
+from pymittagleffler import mittag_leffler
+from scipy.integrate import quad
 
 # ----------- Input parameters ---------- #
 
@@ -30,9 +32,9 @@ hbar = 6.62607015e-34 / (2 * np.pi)
 
 # ------------- FDE Params ------------- #
 
-L = 2 * np.pi
-m = 2
-alpha = 2
+L = 10
+m = 20
+beta = 1.85
 beta_k = np.array([])
 
 
@@ -61,12 +63,12 @@ b_i = np.array([])
 
 # region auxilliary parameters
 
-n = int(np.ceil(alpha))
+n = int(np.ceil(beta))
 k = len(beta_k)
 
 # Debug
 if len(beta_k) > 0:
-    assert alpha > np.max(beta_k)
+    assert beta > np.max(beta_k)
 assert len(d_j) == k + 2
 assert len(a_i) + len(b_i) == n
 
@@ -147,7 +149,7 @@ def D(N, nu):
 
 
 # Solving
-def Solve_Tau():
+def Solve_Tau(m):
     # Phi(x)
     phi = chebvander(t, m).T
     phi_0 = phi[:, 0]
@@ -183,7 +185,7 @@ def Solve_Tau():
         G_T = np.zeros(m + 1)
 
     # D'
-    D_alpha = D(N=m, nu=alpha)
+    D_alpha = D(N=m, nu=beta)
     D_beta_sum = np.zeros((m + 1, m + 1))
     for i in range(k):
         D_beta_sum += d_j[i] * D(N=m, nu=beta_k[i])
@@ -208,10 +210,51 @@ def Solve_Tau():
     C = np.linalg.solve(Operator.T, column_vec.T)
     y = C.T @ phi
 
-    return y
+    return y, C
 
 
-y = Solve_Tau()
+y, C = Solve_Tau(m)
+
+# endregion
+
+# region Analytical solution
+
+
+def analytic(t, beta, omega, y_0, y_dot_0):
+    omega_t_pow = -(omega**2) * t**beta
+
+    f1 = mittag_leffler(omega_t_pow, beta, 1)
+    f2 = t * mittag_leffler(omega_t_pow, beta, 2)
+
+    return np.real(y_0 * f1 + y_dot_0 * f2)
+
+
+# endregion
+
+# region Error analysis
+
+
+def err(m):
+    _, C = Solve_Tau(m)
+
+    def diff_square(x):
+        a_vals = analytic(x, beta, omega, a_i[0], a_i[1])
+        t = 2 * x / L - 1
+        phi = chebvander(t, m).T
+        return (a_vals - C.T @ phi) ** 2
+
+    RMSE = np.sqrt(quad(diff_square, 0, L)[0])
+    return RMSE
+
+
+ms = np.arange(2, 100)
+RMSEs = np.vectorize(err)(ms)
+
+plt.figure()
+plt.semilogy()
+plt.scatter(ms, RMSEs)
+plt.show()
+
 
 # endregion
 
@@ -219,17 +262,17 @@ y = Solve_Tau()
 # ---------- Plotting output ---------- #
 
 if __name__ == "__main__":
-    analytic = np.cos(x)
+    analytic_vals = analytic(x, beta, omega, a_i[0], a_i[1])
     plt.figure(2).add_axes((0.1, 0.3, 0.8, 0.6))
     plt.plot(x, y, label="Tau (spectral) method")
-    plt.plot(x, analytic, linestyle="--", label="Analytical solution")
+    plt.plot(x, analytic_vals, linestyle="--", label="Analytical solution")
     plt.legend()
     plt.ylabel("y")
 
     plt.figure(2).add_axes((0.1, 0.1, 0.8, 0.2))
     plt.xlabel("x")
     plt.ylabel("deviation")
-    plt.plot(x, y - analytic)
+    plt.plot(x, y - analytic_vals)
     plt.plot(x, np.zeros_like(x), linestyle="--")
     # # plt.savefig("y.png")
     plt.show()

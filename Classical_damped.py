@@ -52,15 +52,16 @@ def solve(N, x_y):
     def approx(x):
         ts = 2 * x / L - 1
         return a_i @ chebvander(ts, N - 1).T
-    
+
     def analytic(x):
-        decay = np.exp(-gamma*x)
-        omega = np.sqrt(omega_0**2 + gamma**2)
-        oscillation = np.cos(omega*x)
-        return decay*oscillation
+        decay = np.exp(-gamma * x)
+        omega = np.sqrt(omega_0**2 - gamma**2)
+        sfactor = (d_j[0] * gamma + d_j[1]) / omega
+        oscillation = np.cos(omega * x) + sfactor * np.sin(omega * x)
+        return decay * oscillation
 
     def approx_err(x):
-        return (approx(x) - analytic(x))**2
+        return (approx(x) - analytic(x)) ** 2
 
     RMSE = np.sqrt(quad(approx_err, 0, L)[0])
 
@@ -69,12 +70,12 @@ def solve(N, x_y):
     else:
         return RMSE
 
+
 def sf(x, p=2):
     x = np.asarray(x)
-    x_positive = np.where(np.isfinite(x) & (x != 0), np.abs(x), 10**(p-1))
+    x_positive = np.where(np.isfinite(x) & (x != 0), np.abs(x), 10 ** (p - 1))
     mags = 10 ** (p - 1 - np.floor(np.log10(x_positive)))
     return np.round(x * mags) / mags
-
 
 
 Damped_plot = 0
@@ -109,10 +110,10 @@ if Damped_plot:
 
 if Error_N:
     solves = np.vectorize(solve)
-    Ns = np.arange(2, 50)
-    RMSEs = solves(Ns, x_y = False)
+    Ns = np.arange(2, 100)
+    RMSEs = solves(Ns, x_y=False)
 
-    mask = RMSEs > 1e-10
+    mask = RMSEs > 1e-18
     Ns = Ns[mask]
     RMSEs = RMSEs[mask]
 
@@ -121,41 +122,50 @@ if Error_N:
 
     plt.scatter(Ns, RMSEs, color="red", alpha=0.5)
 
-    fp_err = 23
+    wu = 22
+    fp_err = 48
 
     def exp_fit(x, a, b):
         return a * np.exp(-b * x)
 
-
     def exp_fit_log(x, a, b):
         return np.log(a) - b * x
 
-    a_fit, b_fit = curve_fit(exp_fit_log, Ns[:fp_err], np.log(RMSEs[:fp_err]))[0]
+    a_fit, b_fit = curve_fit(exp_fit_log, Ns[wu:fp_err], np.log(RMSEs[wu:fp_err]))[0]
 
-    print("Error half life = " + str(np.log(2)/b_fit))
     print("Decay = " + str(100 - 100*np.exp(-b_fit)) + "%")
 
-    N_exp = np.array([Ns[0], Ns[fp_err]])
+    print("Error half life = " + str(np.log(2) / b_fit))
+    print("Decay = " + str(100 - 100 * np.exp(-b_fit)) + "%")
+
+    N_exp = np.array([Ns[wu], Ns[fp_err]])
     label_exp = str(sf(a_fit)) + r" $exp($" + str(-sf(b_fit)) + r"$N)$"
 
     plt.plot(
-        N_exp, exp_fit(N_exp, a_fit, b_fit), label=label_exp, linestyle="--", color="black"
+        N_exp,
+        exp_fit(N_exp, a_fit, b_fit),
+        label=label_exp,
+        linestyle="--",
+        color="black",
     )
 
-    a_round = curve_fit(lambda x, a: np.log(a)*np.ones_like(x), Ns[fp_err:], np.log(RMSEs[fp_err:]))[0]
+    a_round, b_round = curve_fit(exp_fit_log, Ns[fp_err:], np.log(RMSEs[fp_err:]))[0]
 
     N_round = np.array([Ns[fp_err], Ns[-1]])
-    label_round = str(sf(a_round)[0])
+    label_round = str(sf(a_round)) + r" $exp($" + str(-sf(b_round)) + r"$N)$"
 
     plt.plot(
-        N_round, np.exp(a_round)*np.ones_like(N_round), label=label_round, linestyle=":", color="black"
+        N_round,
+        exp_fit(N_round, a_round, b_round),
+        label=label_round,
+        linestyle=":",
+        color="black",
     )
-
-
 
     plt.xlabel(r"$N$")
     plt.ylabel("RMS Error")
     plt.title(r"Error in $u_N$ approximation of classical damped pendulum")
     plt.legend()
 
+    # plt.savefig("Classical_damped_err.png")
     plt.show()

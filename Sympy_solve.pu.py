@@ -1,38 +1,35 @@
 import matplotlib.pyplot as plt
 import numpy as np
-from sympy import cos, gamma, integrate, simplify, sin, symbols
+from sympy import simplify, symbols, 
 from sympy.printing.latex import latex
 from sympy.utilities.lambdify import lambdify
+from sympy.abc import s, t
 
-t, beta, omega_0, x, y_0, y_dot_0 = symbols("t beta omega_0 x y_0 y_dot_0")
+beta = symbols("beta", positive=True)
+omega_0, y_0, y_dot_0 = symbols("omega_0 y_0 y_dot_0", real=True)
 
-cs = x ** (beta - 1) * sin(omega_0 * x)
-ss = x ** (beta - 1) * cos(omega_0 * x)
+sfn = (s ** (1 - beta) * y_0 + s ** (beta - 2) * y_dot_0) / (s**beta + omega_0**2)
 
-cs_int = simplify(integrate(cs, (x, 0, t)))
-ss_int = simplify(integrate(ss, (x, 0, t)))
+A = 1 / s
 
-A = (y_0 * cos(omega_0 * t) + (y_dot_0 / omega_0) * sin(omega_0 * t)) / gamma(2 - beta)
-B = (y_0 * sin(omega_0 * t) - (y_dot_0 / omega_0) * cos(omega_0 * t)) / gamma(2 - beta)
-
-big_exp = simplify(A * cs_int + B * ss_int)
+big_exp = inverse_laplace_transform(A, s, t)
 
 
 print("Big expression:")
-print(latex(big_exp))
+print(latex(simplify(big_exp)))
 
-f = lambdify((t, beta, omega_0, y_0, y_dot_0), big_exp, "mpmath")
-
-
-def damped(x):
-    return f(x, beta=1.85, omega_0=1, y_0=1, y_dot_0=0)
+# f = lambdify((t, beta, omega_0, y_0, y_dot_0), big_exp, "mpmath")
 
 
-t = np.linspace(0, 10, 250)
-ys = np.empty_like(t)
-for i in range(len(t)):
-    ys[i] = np.float64(damped(t[i]))
+# def damped(x):
+#     return f(x, beta=1.85, omega_0=1, y_0=1, y_dot_0=0)
 
-plt.figure()
-plt.plot(t, ys)
-plt.show()
+
+# t = np.linspace(0, 25, 250)
+# ys = np.empty_like(t)
+# for i in range(len(t)):
+#     ys[i] = np.float64(damped(t[i]))
+
+# plt.figure()
+# plt.plot(t, ys)
+# plt.show()
