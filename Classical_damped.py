@@ -163,9 +163,9 @@ if Error_N:
     )
 
     plt.xlabel(r"$N$")
-    plt.ylabel("RMS Error")
+    plt.ylabel("RMSE")
     plt.title(r"Error in $u_N$ approximation of classical damped pendulum")
     plt.legend()
 
-    # plt.savefig("Classical_damped_err.png")
+    plt.savefig("Classical_damped_err.png")
     plt.show()

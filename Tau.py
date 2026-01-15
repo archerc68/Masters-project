@@ -6,6 +6,9 @@ from scipy.special import gammaln, loggamma
 from pymittagleffler import mittag_leffler
 from scipy.integrate import quad
 
+plt.rcParams["font.family"] = "Times New Roman"
+
+
 # ----------- Input parameters ---------- #
 
 "Solves FDEs (Caputo) using the spectral method (Doha et al.) in the form:"
@@ -252,7 +255,13 @@ RMSEs = np.vectorize(err)(ms)
 
 plt.figure()
 plt.semilogy()
-plt.scatter(ms, RMSEs)
+plt.scatter(ms, RMSEs, alpha=0.5, color="red")
+
+plt.xlabel(r"N")
+plt.ylabel("RMSE")
+plt.title(r"Error in $u_N$ approximation for fractional pendulum")
+
+plt.savefig("Error_fractional.png", dpi=1000)
 plt.show()
 
 
@@ -270,9 +279,9 @@ if __name__ == "__main__":
     plt.ylabel("y")
 
     plt.figure(2).add_axes((0.1, 0.1, 0.8, 0.2))
-    plt.xlabel("x")
+    plt.xlabel("t")
     plt.ylabel("deviation")
     plt.plot(x, y - analytic_vals)
     plt.plot(x, np.zeros_like(x), linestyle="--")
-    # # plt.savefig("y.png")
+    plt.savefig("y.png")
     plt.show()

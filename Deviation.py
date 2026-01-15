@@ -9,7 +9,8 @@ plt.rcParams["font.family"] = "Times New Roman"
 plotA = False
 plotB = False
 plotC = False
-plotD = True
+plotD = False
+plotE = True
 
 Save_figure = True
 
@@ -152,4 +153,12 @@ if plotD:
         plt.savefig("u3.png", dpi=1000)
     plt.show()
 
-    
+if plotE:
+
+    def diff2(x):
+        return (np.cos(x) - 1)**2
+        
+    RMSE2 = quad(diff2, -1, 1)[0]
+
+
+    print(np.sqrt(RMSE2))
