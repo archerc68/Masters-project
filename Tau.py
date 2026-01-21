@@ -2,9 +2,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 from numpy.polynomial.chebyshev import chebvander
 from scipy.optimize import least_squares
-from scipy.special import gammaln, loggamma
+from scipy.special import gammaln, loggamma, gamma, poch, rgamma, gammaln
 from pymittagleffler import mittag_leffler
 from scipy.integrate import quad
+from scipy.linalg import lu_factor, lu_solve
+import mpmath as mp
+
 
 plt.rcParams["font.family"] = "Times New Roman"
 
@@ -35,7 +38,7 @@ hbar = 6.62607015e-34 / (2 * np.pi)
 
 # ------------- FDE Params ------------- #
 
-L = 10
+L = 20
 m = 20
 beta = 1.85
 beta_k = np.array([])
@@ -102,7 +105,7 @@ def D_1(N):
     return np.array(D_matrix)
 
 
-def D(N, nu):
+def D1(N, nu):
     if type(nu) is int:
         return np.linalg.matrix_power(D_1(N), nu)
     else:
@@ -147,12 +150,172 @@ def D(N, nu):
 
 # endregion
 
+# region New D
+
+
+# # i -> i - 1
+# def I(i, k):
+#     num = -(i - 1) * (i - k)
+#     den = i * (i + k - 1)
+#     return num / den
+
+
+# # j -> j + 1
+# def J(j, k, nu):
+#     num = -j + k - nu
+#     den = j + k - nu + 1
+#     return num / den
+
+
+# # Lower left corner
+
+
+# def seeds(nu, N):
+#     n = int(np.ceil(nu))
+
+#     s1 = np.log(poch(N - n + 1, 2 * n - 1))
+#     s2 = loggamma(n - nu + 0.5) - loggamma(n + 0.5)
+#     s3 = -2 * loggamma(n - nu + 1)
+
+#     seed0 = np.log(N) + s1 + s2 + s3
+
+#     seed_arr = np.empty(N - n + 1)
+#     seed_arr[0] = seed0
+#     c = 0
+
+#     for k in range(n, N):
+#         num = np.log(N + k) + np.log(k - nu + 0.5) + np.log(N - k)
+#         den = np.log(k + 0.5) + 2 * np.log(k - nu + 1)
+
+#         delta = num - den
+#         s = seed_arr[k - n]
+
+#         y = delta - c
+#         t = s + y
+#         c = (t - s) - y
+
+#         seed_arr[k - n + 1] = t
+
+#         # seed_arr[k - n + 1] = num - den + seed_arr[k - n]
+
+#     sign = -((-1) ** (N - n)) * np.cumprod(-np.ones_like(seed_arr))
+#     return np.exp(seed_arr) * sign
+
+
+# print(seeds(1.85, 20))
+
+
+# def D2(N, nu):
+#     if type(nu) is int:
+#         return np.linalg.matrix_power(D_1(N), nu)
+#     else:
+#         n = int(np.ceil(nu))
+#         BigMat = np.zeros((N + 1, N + 1))
+#         c = np.zeros_like(BigMat)
+#         seed_arr = seeds(nu, N)
+
+#         jvals = np.arange(N + 1)
+
+#         for k in range(n, N + 1):
+#             SubMat = np.zeros((N + 1, N + 1))
+#             SubMat[N, 0] = seed_arr[k - n]
+
+#             JOp = J(jvals[:N], k, nu)
+#             SubMat[N, 1:] = SubMat[N, 0] * np.cumprod(JOp)
+
+#             Is = np.arange(k + 1, N + 1)[::-1]
+#             for i in Is:
+#                 SubMat[i - 1, :] = I(i, k) * SubMat[i, :]
+
+#             y = SubMat - c
+#             t = BigMat + y
+#             c = (t - BigMat) - y
+#             BigMat = t.copy()
+
+#         eps_j = np.ones((N + 1, N + 1))
+#         eps_j[:, 0] = 2
+
+#         coeff = 2 / (eps_j * L**nu)
+
+#         return coeff * BigMat
+
+
+def I(i, k, N):
+    num = -i * (i - k + 1)
+    den = (i + 1) * (i + k)
+    frac = num / den
+    return np.where(i == N, 1, frac)
+
+
+# j - 1 -> j
+def J(j, k, nu):
+    num = -j + k - nu + 1
+    den = j + k - nu
+    frac = num / den
+    frac[:, 0] = 1
+    return frac
+
+
+# k - 1 -> k
+def K(i, j, k, nu):
+    # K - 1 -> k recurrence relation
+    num = (i * i - (k - 1) ** 2) * (2 * k - 2 * nu - 1)
+    den = (j * j - (k - nu) ** 2) * (2 * k - 1)
+    frac = num / den
+
+    # Ratio of consecutive terms (in k)
+    ratio_consec = frac.copy()
+    ratio_consec[k > i] = 0
+    ratio_consec[..., 0] = 1
+
+    # Ratio compared to first term (in k)
+    ratio = np.cumprod(ratio_consec, axis=2)
+
+    # Sum of ratios compared to first term (in k)
+    return np.sum(ratio, axis=2)
+
+
+def seed_0(N, nu):
+    n = int(np.ceil(nu))
+    num = (-1) ** (N - n) * N * poch(n + 0.5, -nu) * poch(N - n + 1, 2 * n - 1)
+    den_inv = rgamma(n - nu + 1) ** 2
+    return num * den_inv
+
+
+def D(N, nu):
+    if type(nu) is int:
+        return np.linalg.matrix_power(D_1(N), nu)
+    else:
+        n = int(np.ceil(nu))
+
+        arrij = np.arange(N + 1, dtype=int)
+        arrk = np.arange(N + 1 - n, dtype=int) + n
+        i, j, k = np.meshgrid(arrij, arrij, arrk)
+
+        Si, Sj = I(arrij, n, N), J(arrij[None, :], n, nu)
+        Sk = K(i, j, k, nu)
+
+        Mat_i = np.cumprod(Si[::-1])[::-1] * seed_0(N, nu)
+
+        Mat_ij = np.cumprod(Sj, axis=1) * Mat_i[:, None]
+
+        Mat = Mat_ij * Sk  # Sk needs fixing
+
+        eps_j = np.ones_like(Mat_ij)
+        eps_j[:, 0] = 2
+        coeff = 2 / (L** nu * eps_j)
+
+        return coeff * Mat
+
+
+# endregion
+
 
 # region Solving FDE
 
 
 # Solving
-def Solve_Tau(m):
+def Solve_Tau(m, D):
     # Phi(x)
     phi = chebvander(t, m).T
     phi_0 = phi[:, 0]
@@ -210,13 +373,15 @@ def Solve_Tau(m):
     column_vec[: m - n + 1] = G_T[: m - n + 1]
     column_vec[m - n + 1 :] = np.concatenate((a_i, b_i))
 
-    C = np.linalg.solve(Operator.T, column_vec.T)
+    lu, piv = lu_factor(Operator.T)
+    C = lu_solve((lu, piv), column_vec.T)
     y = C.T @ phi
 
     return y, C
 
 
-y, C = Solve_Tau(m)
+y, C = Solve_Tau(m, D)
+y1, _ = Solve_Tau(m, D1)
 
 # endregion
 
@@ -237,8 +402,8 @@ def analytic(t, beta, omega, y_0, y_dot_0):
 # region Error analysis
 
 
-def err(m):
-    _, C = Solve_Tau(m)
+def err(m, D):
+    _, C = Solve_Tau(m, D)
 
     def diff_square(x):
         a_vals = analytic(x, beta, omega, a_i[0], a_i[1])
@@ -250,18 +415,21 @@ def err(m):
     return RMSE
 
 
-ms = np.arange(2, 100)
-RMSEs = np.vectorize(err)(ms)
+ms = np.arange(2, 20)
+RMSEs = np.vectorize(err)(ms, D)
+RMSEs1 = np.vectorize(err)(ms, D1)
 
 plt.figure()
 plt.semilogy()
-plt.scatter(ms, RMSEs, alpha=0.5, color="red")
+plt.scatter(ms, RMSEs, alpha=0.5, color="red", label="New")
+plt.scatter(ms, RMSEs1, alpha=0.5, color="blue", label="Old")
 
 plt.xlabel(r"N")
 plt.ylabel("RMSE")
+plt.legend()
 plt.title(r"Error in $u_N$ approximation for fractional pendulum")
 
-plt.savefig("Error_fractional.png", dpi=1000)
+# plt.savefig("Error_fractional.png", dpi=1000)
 plt.show()
 
 
@@ -273,6 +441,7 @@ plt.show()
 if __name__ == "__main__":
     analytic_vals = analytic(x, beta, omega, a_i[0], a_i[1])
     plt.figure(2).add_axes((0.1, 0.3, 0.8, 0.6))
+    y, _ = Solve_Tau(20, D)
     plt.plot(x, y, label="Tau (spectral) method")
     plt.plot(x, analytic_vals, linestyle="--", label="Analytical solution")
     plt.legend()

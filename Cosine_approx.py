@@ -3,6 +3,7 @@ import numpy as np
 from numpy.polynomial.chebyshev import chebvander
 from scipy.integrate import quad
 from scipy.optimize import curve_fit
+from scipy.linalg import lu_factor, lu_solve
 
 plt.rcParams["font.family"] = "Times New Roman"
 
@@ -35,12 +36,14 @@ def solve(N, x_y):
     Big_mat[:, -1] = (diff_mat(alpha_j[0], N) @ chebvander(-1, N - 1).T)[:, 0]
     Big_mat[:, -2] = (diff_mat(alpha_j[1], N) @ chebvander(-1, N - 1).T)[:, 0]
 
-    Big_mat_inv = np.linalg.inv(Big_mat)
+    # Big_mat_inv = np.linalg.inv(Big_mat)
 
     column_vec = np.zeros(N)
     column_vec[-1], column_vec[-2] = d_j[0], d_j[1]
 
-    a_i = column_vec @ Big_mat_inv
+    lu, piv = lu_factor(Big_mat.T)
+    a_i = lu_solve((lu, piv), column_vec.T).T
+    # a_i = column_vec @ Big_mat_inv
 
     x = np.linspace(0, 1, 250)
 
