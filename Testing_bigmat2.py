@@ -88,7 +88,9 @@ def BigMat(N, nu):
         arrij = np.arange(N + 1, dtype=int)
         arrk = np.arange(N - n + 1, dtype=int) + n
 
-        i, j, k = np.meshgrid(arrij, arrij, arrk)
+        i = arrij[:, None, None]
+        j = arrij[None, :, None]
+        k = arrk[None, None, :]
 
         # Ratios of consecutive terms
         Si, Sj = I(arrij, n, N), J(arrij[None, :], n, nu)

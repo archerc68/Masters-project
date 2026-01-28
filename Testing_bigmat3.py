@@ -6,32 +6,32 @@ L = 2
 
 
 def I_plus(i, n):
-    num = -i * (i + n - 1)
-    den = (i - 1) * (i - n)
-
-    ans = num / den
-    ans[i == n] = 1
-    return ans
+    def I_plusn(i):
+        num = -i * (i + n - 1)
+        den = (i - 1) * (i - n)
+        return num/den
+    return np.where(i > n, I_plusn(i), 1)
 
 
 def J_plus(j, nu, n):
     num = (-j + n - nu + 1)
     den = (j + n - nu)
 
-    ans = num/den
-    ans[j == 0] = 1
-    return ans
+    ansJ = num/den
+    ansJ[j == 0] = 1
+    return ansJ
 
 
-def K_plus(i, j, k, nu, n):
-    num = (i - k + 1) * (i + k - 1)
-    den = (j - k + nu) * (j + k - nu)
-    ans = num / den
+def K_plus(i, j, k, nu):
+    def k_plusi(k):
+        num = (i * i - (k - 1) ** 2) * (2 * k - 2 * nu - 1)
+        den = (j * j - (k - nu) ** 2) * (2 * k - 1)
+        return num / den
 
-    ans[k == n] = 1
-    ans[k > i] = 0
-    return ans
+    ansK = np.where(k <= i, k_plusi(k), 0)
+    ansK[:, :, 0] = 1
 
+    return ansK
 
 def seed(nu, n):
     num = 2 ** (2 * n - 1) * gamma(n + 1) * gamma(-nu + n + 0.5)
@@ -51,8 +51,11 @@ def BigMat(N, nu):
 
         I, J = I_plus(arrk, n), J_plus(arrij, nu, n)
 
-        i, j, k = np.meshgrid(arrij, arrij, arrk)
-        K = K_plus(i, j, k, nu, n)
+        i = arrij[:, None, None]
+        j = arrij[None, :, None]
+        k = arrk[None, None, :]
+
+        K = K_plus(i, j, k, nu)
 
         Mat[n:, 0] = seed(nu, n) * np.cumprod(I)
 
@@ -110,4 +113,5 @@ def D1(N, nu):
         return D_matrix
 
 
-print(BigMat(5, 1.85)/D1(5, 1.85))
+print(BigMat(20, 1.85)/D1(20, 1.85))
+# BigMat(5, 1.85)

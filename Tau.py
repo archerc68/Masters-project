@@ -90,6 +90,20 @@ x = (t + 1) * L / 2
 
 # endregion
 
+def KahanK(input, N):
+    
+    # Kahan summation algorithm
+    sum = np.zeros((N+1, N+1))
+    c = np.zeros((N+1, N+1))
+
+    for i in range(input.shape[2]):
+        y = input[:, :, i] - c
+        t = sum + y
+        c = (t - sum) - y
+        sum = t.copy()
+    return sum
+
+
 
 # region D matrix
 def D_1(N):
@@ -153,133 +167,38 @@ def D1(N, nu):
 # region New D
 
 
-# # i -> i - 1
-# def I(i, k):
-#     num = -(i - 1) * (i - k)
-#     den = i * (i + k - 1)
-#     return num / den
+def I_plus(i, n):
+    def I_plusn(i):
+        numI = -i * (i + n - 1)
+        denI = (i - 1) * (i - n)
+        return numI/denI
+    return np.where(i > n, I_plusn(i), 1)
 
 
-# # j -> j + 1
-# def J(j, k, nu):
-#     num = -j + k - nu
-#     den = j + k - nu + 1
-#     return num / den
+def J_plus(j, nu, n):
+    numJ = (-j + n - nu + 1)
+    denJ = (j + n - nu)
+
+    ansJ = numJ/denJ
+    ansJ[j == 0] = 1
+    return ansJ
 
 
-# # Lower left corner
+def K_plus(i, j, k, nu):
+    def k_plusi(k):
+        numK = (i * i - (k - 1) ** 2) * (2 * k - 2 * nu - 1)
+        denK = (j * j - (k - nu) ** 2) * (2 * k - 1)
+        return numK / denK
 
+    ansK = np.where(k <= i, k_plusi(k), 0)
+    ansK[:, :, 0] = 1
 
-# def seeds(nu, N):
-#     n = int(np.ceil(nu))
+    return ansK
 
-#     s1 = np.log(poch(N - n + 1, 2 * n - 1))
-#     s2 = loggamma(n - nu + 0.5) - loggamma(n + 0.5)
-#     s3 = -2 * loggamma(n - nu + 1)
-
-#     seed0 = np.log(N) + s1 + s2 + s3
-
-#     seed_arr = np.empty(N - n + 1)
-#     seed_arr[0] = seed0
-#     c = 0
-
-#     for k in range(n, N):
-#         num = np.log(N + k) + np.log(k - nu + 0.5) + np.log(N - k)
-#         den = np.log(k + 0.5) + 2 * np.log(k - nu + 1)
-
-#         delta = num - den
-#         s = seed_arr[k - n]
-
-#         y = delta - c
-#         t = s + y
-#         c = (t - s) - y
-
-#         seed_arr[k - n + 1] = t
-
-#         # seed_arr[k - n + 1] = num - den + seed_arr[k - n]
-
-#     sign = -((-1) ** (N - n)) * np.cumprod(-np.ones_like(seed_arr))
-#     return np.exp(seed_arr) * sign
-
-
-# print(seeds(1.85, 20))
-
-
-# def D2(N, nu):
-#     if type(nu) is int:
-#         return np.linalg.matrix_power(D_1(N), nu)
-#     else:
-#         n = int(np.ceil(nu))
-#         BigMat = np.zeros((N + 1, N + 1))
-#         c = np.zeros_like(BigMat)
-#         seed_arr = seeds(nu, N)
-
-#         jvals = np.arange(N + 1)
-
-#         for k in range(n, N + 1):
-#             SubMat = np.zeros((N + 1, N + 1))
-#             SubMat[N, 0] = seed_arr[k - n]
-
-#             JOp = J(jvals[:N], k, nu)
-#             SubMat[N, 1:] = SubMat[N, 0] * np.cumprod(JOp)
-
-#             Is = np.arange(k + 1, N + 1)[::-1]
-#             for i in Is:
-#                 SubMat[i - 1, :] = I(i, k) * SubMat[i, :]
-
-#             y = SubMat - c
-#             t = BigMat + y
-#             c = (t - BigMat) - y
-#             BigMat = t.copy()
-
-#         eps_j = np.ones((N + 1, N + 1))
-#         eps_j[:, 0] = 2
-
-#         coeff = 2 / (eps_j * L**nu)
-
-#         return coeff * BigMat
-
-
-def I(i, k, N):
-    num = -i * (i - k + 1)
-    den = (i + 1) * (i + k)
-    frac = num / den
-    return np.where(i == N, 1, frac)
-
-
-# j - 1 -> j
-def J(j, k, nu):
-    num = -j + k - nu + 1
-    den = j + k - nu
-    frac = num / den
-    frac[:, 0] = 1
-    return frac
-
-
-# k - 1 -> k
-def K(i, j, k, nu):
-    # K - 1 -> k recurrence relation
-    num = (i * i - (k - 1) ** 2) * (2 * k - 2 * nu - 1)
-    den = (j * j - (k - nu) ** 2) * (2 * k - 1)
-    frac = num / den
-
-    # Ratio of consecutive terms (in k)
-    ratio_consec = frac.copy()
-    ratio_consec[k > i] = 0
-    ratio_consec[..., 0] = 1
-
-    # Ratio compared to first term (in k)
-    ratio = np.cumprod(ratio_consec, axis=2)
-
-    # Sum of ratios compared to first term (in k)
-    return np.sum(ratio, axis=2)
-
-
-def seed_0(N, nu):
-    n = int(np.ceil(nu))
-    num = (-1) ** (N - n) * N * poch(n + 0.5, -nu) * poch(N - n + 1, 2 * n - 1)
-    den_inv = rgamma(n - nu + 1) ** 2
-    return num * den_inv
+def seed(nu, n):
+    num = 2 ** (2 * n - 1) * gamma(n + 1) * gamma(-nu + n + 0.5)
+    den = np.sqrt(np.pi) * gamma(-nu + n + 1) ** 2
+    return num / den
 
 
 def D(N, nu):
@@ -287,23 +206,29 @@ def D(N, nu):
         return np.linalg.matrix_power(D_1(N), nu)
     else:
         n = int(np.ceil(nu))
+        Mat = np.zeros((N + 1, N + 1))
 
-        arrij = np.arange(N + 1, dtype=int)
-        arrk = np.arange(N + 1 - n, dtype=int) + n
-        i, j, k = np.meshgrid(arrij, arrij, arrk)
+        arrij = np.arange(N + 1)
+        arrk = np.arange(N + 1 - n) + n
 
-        Si, Sj = I(arrij, n, N), J(arrij[None, :], n, nu)
-        Sk = K(i, j, k, nu)
+        I, J = I_plus(arrk, n), J_plus(arrij, nu, n)
 
-        Mat_i = np.cumprod(Si[::-1])[::-1] * seed_0(N, nu)
+        i = arrij[:, None, None]
+        j = arrij[None, :, None]
+        k = arrk[None, None, :]
 
-        Mat_ij = np.cumprod(Sj, axis=1) * Mat_i[:, None]
+        K = K_plus(i, j, k, nu)
 
-        Mat = Mat_ij * Sk  # Sk needs fixing
+        Mat[n:, 0] = seed(nu, n) * np.cumprod(I)
 
-        eps_j = np.ones_like(Mat_ij)
+        Mat = Mat[:, 0][:, None] * np.cumprod(J)[None, :]
+
+        Mat = Mat * KahanK(np.cumprod(K, axis=2), N)
+
+        # Prefactors
+        eps_j = np.ones((N+1, N+1))
         eps_j[:, 0] = 2
-        coeff = 2 / (L** nu * eps_j)
+        coeff = 2 / (L ** nu * eps_j)
 
         return coeff * Mat
 
@@ -414,8 +339,7 @@ def err(m, D):
     RMSE = np.sqrt(quad(diff_square, 0, L)[0])
     return RMSE
 
-
-ms = np.arange(2, 20)
+ms = np.arange(2, 50)
 RMSEs = np.vectorize(err)(ms, D)
 RMSEs1 = np.vectorize(err)(ms, D1)
 
@@ -441,7 +365,7 @@ plt.show()
 if __name__ == "__main__":
     analytic_vals = analytic(x, beta, omega, a_i[0], a_i[1])
     plt.figure(2).add_axes((0.1, 0.3, 0.8, 0.6))
-    y, _ = Solve_Tau(20, D)
+    y, _ = Solve_Tau(22, D)
     plt.plot(x, y, label="Tau (spectral) method")
     plt.plot(x, analytic_vals, linestyle="--", label="Analytical solution")
     plt.legend()
@@ -452,5 +376,5 @@ if __name__ == "__main__":
     plt.ylabel("deviation")
     plt.plot(x, y - analytic_vals)
     plt.plot(x, np.zeros_like(x), linestyle="--")
-    plt.savefig("y.png")
+    # plt.savefig("y.png")
     plt.show()
