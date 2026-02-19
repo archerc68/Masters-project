@@ -9,12 +9,14 @@ plt.rcParams["font.family"] = "Times New Roman"
 
 cos = False
 damp = False
-dampPhase = True
+dampPhase = False
 poly = False
+cdamp = True
 
 # MP4 params
 Period = 10  # Length of clip in seconds
 FPS = 60
+DPI = 400
 
 frames = int(Period * FPS)
 interval = 1000 / FPS  # frametime in ms
@@ -42,33 +44,23 @@ if cos:
         line.set_data([], [])
         return (line,)
 
-    def damped(t, omega, alpha, q_0, p_0, m):
-        omega_t_pow = -(omega**2) * t ** (2 * alpha)
-
-        f1 = mittag_leffler(omega_t_pow, 2 * alpha, 1)
-        f2 = t**alpha * mittag_leffler(omega_t_pow, 2 * alpha, alpha + 1)
-
-        if alpha > 0.5:
-            q = np.real(q_0 * f1 + p_0 / m * f2)
-            p = np.real(p_0 * f1 - m * omega**2 * q_0 * f2)
-        else:
-            q = np.real(q_0 * f1)
-            p = np.real(-m * omega**2 * q_0 * f2)
-
-        return q, p
-
     def D_alpha_sin(t, omega, alpha):
         f1 = mittag_leffler(1j * omega * t, 1, 1 - alpha)
         f2 = mittag_leffler(-1j * omega * t, 1, 1 - alpha)
 
         return np.real((f1 - f2) / (2j * t**alpha))
+    
+    annot = axis.annotate(r"$\alpha$: 0", (15, 1.5))
 
     def animate(i):
         t = np.linspace(0.05, 4 * np.pi, 1000)
 
         # plots a sine graph
-        y = D_alpha_sin(t, 1, 2 * i / frames)
+        alpha = 2 * i / frames
+        y = D_alpha_sin(t, 1, alpha)
         line.set_data(t, y)
+
+        annot.set_text(r"$\alpha$: " + str(np.round(alpha)))
 
         return (line,)
 
@@ -77,10 +69,10 @@ if cos:
     )
 
     anim.save(
-        "cosFD.mp4",
+        "cosFD1.mp4",
         writer="ffmpeg",
         fps=FPS,
-        dpi=200,
+        dpi=DPI,
     )
 
 
@@ -127,14 +119,20 @@ if damp:
             p = np.real(-m * omega**2 * q_0 * f2)
 
         return q, p
+    
+
+    annot = axis.annotate(r'$\alpha$: 0.5', (15, 0.5))
 
     def animate(i):
         t = np.linspace(0, 20 * np.pi, 2000)
 
         # plots a sine graph
-        q, _ = damped(t, 1, 1 - 0.5 * i / frames, 1, 0, 1)
+        alpha = 1 - 0.5 * i / frames
+        q, _ = damped(t, 1, alpha, 1, 0, 1)
         line.set_data(t, q)
         line.set_color(cmap(frames - i))
+
+        annot.set_text(r"$\alpha$: " + str(np.round(alpha, 3)))
 
         return (line,)
 
@@ -146,7 +144,7 @@ if damp:
         "Damped.mp4",
         writer="ffmpeg",
         fps=FPS,
-        dpi=200,
+        dpi=DPI,
     )
 
 
@@ -194,14 +192,19 @@ if dampPhase:
             p = np.real(-m * omega**2 * q_0 * f2)
 
         return q, p
+    
+    annot = axis.annotate(r'$\alpha$: 0.5', (0.75, 0.9))
 
     def animate(i):
         t = np.linspace(0, 20 * np.pi, 2000)
 
         # plots a sine graph
-        q, p = damped(t, 1, 1 - 0.5 * i / frames, 1, 0, 1)
+        alpha = 1 - 0.5 * i / frames
+        q, p = damped(t, 1, alpha, 1, 0, 1)
         line.set_data(q, p)
         line.set_color(cmap(frames - i))
+
+        annot.set_text(r"$\alpha$: " + str(np.round(alpha, 3)))
 
         return (line,)
 
@@ -213,7 +216,7 @@ if dampPhase:
         "DampedPhase.mp4",
         writer="ffmpeg",
         fps=FPS,
-        dpi=200,
+        dpi=DPI,
     )
 
 
@@ -262,6 +265,8 @@ if poly:
     )
     plt.plot(t, 6 * t, linestyle="--", color=cmap(frames), label=r"$\alpha=2$")
 
+    annot = axis.annotate(r'$\alpha$: 0', (1.5, 0.75))
+
     def animate(i):
         I = 2 * i / frames
 
@@ -269,6 +274,7 @@ if poly:
 
         line.set_data(t, y)
         line.set_color(cmap(i))
+        annot.set_text(r'$\alpha$: ' + str(np.round(I, 3)))
         return (line,)
 
     anim = FuncAnimation(
@@ -278,8 +284,80 @@ if poly:
     plt.legend()
 
     anim.save(
-        "polyFD.mp4",
+        "polyFD1.mp4",
         writer="ffmpeg",
         fps=FPS,
-        dpi=200,
+        dpi=DPI,
+    )
+
+
+if cdamp:
+    # marking the x-axis and y-axis
+    axis = plt.axes(xlim=(0, 20), ylim=(-1, 1))
+
+    plt.xlabel(r"$t$")
+    plt.ylabel(r"$y(t)$")
+    plt.title("Motion of classical pendulum")
+
+    cmap = plt.get_cmap("plasma", frames)
+
+    norm = mpl.colors.Normalize(vmin=0, vmax=1)
+    sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+
+    plt.colorbar(
+        sm,
+        ticks=np.linspace(0, 1, 5),
+        ax=axis,
+        label=r"$\gamma$",
+    )
+
+    # initializing a line variable
+    (line,) = axis.plot([], [], lw=3)
+
+    # data which the line will
+    # contain (x, y)
+    def init():
+        line.set_data([], [])
+        return (line,)
+
+    def damped(t, omega_0, gamma, q_0, p_0, m):
+
+        omega = np.sqrt(omega_0**2 + gamma**2)
+
+        decay = np.exp(-gamma*t)
+
+        p = np.zeros_like(t)
+
+        f1 = q_0*np.cos(omega*t)
+        f2 = (p_0/m + gamma*q_0)/omega * np.sin(omega*t)
+
+        q = decay*(f1 + f2)
+
+        return q, p
+    
+
+    annot = axis.annotate(r'$\gamma$: 0.000', (15, 0.5))
+
+    def animate(i):
+        t = np.linspace(0, 20 * np.pi, 2000)
+
+        # plots a sine graph
+        gamma = i / frames
+        q, _ = damped(t, 1, gamma, 1, 0, 1)
+        line.set_data(t, q)
+        line.set_color(cmap(i))
+
+        annot.set_text(r"$\gamma$: " + str(np.round(gamma, 3)))
+
+        return (line,)
+
+    anim = FuncAnimation(
+        fig, animate, init_func=init, frames=frames, interval=interval, blit=True
+    )
+
+    anim.save(
+        "Classical_Damped.mp4",
+        writer="ffmpeg",
+        fps=FPS,
+        dpi=DPI,
     )
