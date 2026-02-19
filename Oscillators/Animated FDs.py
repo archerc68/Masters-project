@@ -6,6 +6,7 @@ from mpmath import ff
 from pymittagleffler import mittag_leffler
 
 plt.rcParams["font.family"] = "Times New Roman"
+plt.rcParams.update({'font.size': 12})
 
 cos = False
 damp = False
