@@ -11,8 +11,8 @@ plt.rcParams.update({'font.size': 12})
 cos = False
 damp = False
 dampPhase = False
-poly = False
-cdamp = True
+poly = True
+cdamp = False
 
 # MP4 params
 Period = 10  # Length of clip in seconds
@@ -70,7 +70,7 @@ if cos:
     )
 
     anim.save(
-        "cosFD1.mp4",
+        "Oscillators/cosFD1.mp4",
         writer="ffmpeg",
         fps=FPS,
         dpi=DPI,
@@ -133,7 +133,7 @@ if damp:
         line.set_data(t, q)
         line.set_color(cmap(frames - i))
 
-        annot.set_text(r"$\alpha$: " + str(np.round(alpha, 3)))
+        annot.set_text(r"$\alpha$: " + str(np.round(alpha, 2)))
 
         return (line,)
 
@@ -142,7 +142,7 @@ if damp:
     )
 
     anim.save(
-        "Damped.mp4",
+        "Oscillators/Damped.mp4",
         writer="ffmpeg",
         fps=FPS,
         dpi=DPI,
@@ -214,7 +214,7 @@ if dampPhase:
     )
 
     anim.save(
-        "DampedPhase.mp4",
+        "Oscillators/DampedPhase.mp4",
         writer="ffmpeg",
         fps=FPS,
         dpi=DPI,
@@ -285,7 +285,7 @@ if poly:
     plt.legend()
 
     anim.save(
-        "polyFD1.mp4",
+        "Oscillators/polyFD1.mp4",
         writer="ffmpeg",
         fps=FPS,
         dpi=DPI,
@@ -357,7 +357,7 @@ if cdamp:
     )
 
     anim.save(
-        "Classical_Damped.mp4",
+        "Oscillators/Classical_Damped.mp4",
         writer="ffmpeg",
         fps=FPS,
         dpi=DPI,
