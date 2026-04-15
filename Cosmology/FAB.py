@@ -1,8 +1,15 @@
+from diffeqpy import de
+
+if __name__ == "__main__":
+    from multiprocessing import freeze_support
+    freeze_support()
+
+from diffeqpy import de
 import numpy as np
-from differint.differint import PCsolver
 
-y_solved = PCsolver([1, 1], 1.5, lambda x, y : y - x - 1)
-theoretical = np.linspace(0, 1, 100) + 1
-same = np.allclose(y_solved, theoretical)
-
-print(same)
+f = lambda u,p,t: -u
+u0 = 1.0
+tspan = (0., 1.)
+prob = de.ODEProblem(f, u0, tspan)
+sol = de.solve(prob)
+print(sol.t, sol.u)
