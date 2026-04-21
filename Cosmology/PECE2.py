@@ -79,34 +79,33 @@ def MultiPECE(q, d, f, y_bc, T=1, N=500):
 
 # Test case
 
-# def f(x):
-#     return -2*x
+def f(x):
+    return -2*x
 
-# y = PECE(0.5, 1, 1, f, 10)
-# t = np.linspace(0, 10, 501)
+y = PECE(0.5, 1, 1, f, 10)
+t = np.linspace(0, 10, 501)
 
-# plt.figure()
-# plt.plot(t, y)
-# plt.plot(t, mittag_leffler(-2*t**0.5, 0.5, 1))
-# plt.show()
+plt.figure()
+plt.plot(t, y)
+plt.plot(t, mittag_leffler(-2*t**0.5, 0.5, 1))
+plt.show()
 
 # Fractional Friedmann
 
 
-def f(a, a_dot):
-    aSoft = a
-    return 1 * a_dot * np.sqrt(1e-4 * aSoft ** (-4) + 0.2 * aSoft ** (-3) + 0.8)
+# def f(a, a_dot):
+#     aSoft = a
+#     return 1 * a_dot * np.sqrt(1e-4 * aSoft ** (-4) + 0.2 * aSoft ** (-3) + 0.8)
 
-a = MultiPECE(1 / 2, 3, f, np.array([1e-4, 1e-4]), T=10, N=int(1e3))
+# a = MultiPECE(1 / 2, 3, f, np.array([1e-6, 1e-6]), T=10, N=int(1e3))
 
-fig, axs = plt.subplots(1, 1)
-axs.set_xscale("log")
-axs.set_yscale("log")
-# axs.set_ylim(1e-7, 10)
+# fig, axs = plt.subplots(1, 1)
+# axs.set_xscale("log")
+# axs.set_yscale("log")
+# # axs.set_ylim(1e-7, 10)
 
-i = np.linspace(0, np.log1p(len(a) - 1), 250)
-indices = np.unique(np.expm1(i).astype(int))
+# i = np.linspace(0, np.log1p(len(a) - 1), 250)
+# indices = np.unique(np.expm1(i).astype(int))
 
-
-axs.plot(np.linspace(1e-7, 1, len(indices)), a[indices])
-plt.show()
+# axs.plot(np.linspace(1e-7, 1, len(indices)), a[indices])
+# plt.show()

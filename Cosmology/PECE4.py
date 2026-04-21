@@ -2,6 +2,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.special import gamma
 from pymittagleffler import mittag_leffler
+from numba import njit
+from time import time
 
 
 # mu = 2
@@ -22,11 +24,15 @@ from pymittagleffler import mittag_leffler
 # PECE
 def PECE(alpha, y_0, d, f, T=1, N=int(500)):
 
-    r = 10
+    r = 2
     j = np.linspace(0, 1, N + 1)
-    t = T * j**r
+    t = T * (j**r)
+
+    print(t[1])
+    print(t[-1])
 
     # a and b coefficients
+    @njit()
     def a(j, n):
         coeff = N ** (-r * alpha) / (alpha * (1 + alpha))
 
@@ -52,6 +58,7 @@ def PECE(alpha, y_0, d, f, T=1, N=int(500)):
 
         return coeff * term
 
+    @njit()
     def b(j, n):
         coeff = N ** (-r * alpha) / alpha
         term = ((n + 1) ** r - j**r) ** alpha - ((n + 1) ** r - (j + 1) ** r) ** alpha
@@ -60,25 +67,32 @@ def PECE(alpha, y_0, d, f, T=1, N=int(500)):
     y = np.empty((N + 1, d))
     y[0] = y_0
 
-    for n in range(N):
-        # Predictor
-        b_sum = np.zeros_like(y_0, dtype=float)
-        for j in range(0, n + 1):
-            b_sum += b(j, n) * f(t[n], y[j])
-        p = y_0 + 1 / gamma(alpha) * b_sum
+    ga = gamma(alpha)
+    @njit()
+    def evolve(y):
+        for n in range(N):
+            # Predictor
+            b_sum = np.zeros(d)
+            for j in range(0, n + 1):
+                b_sum += b(j, n) * f(y[j])
+            p = y_0 + 1 / ga * b_sum
 
-        # Corrector
-        a_sum = np.zeros_like(y_0, dtype=float)
-        for j in range(0, n + 1):
-            a_sum += a(j, n) * f(t[n], y[j])
-        c = y_0 + 1 / gamma(alpha) * (a_sum + a(n + 1, n) * f(t[n], p))
+            # Corrector
+            a_sum = np.zeros(d)
+            for j in range(0, n + 1):
+                a_sum += a(j, n) * f(y[j])
+            c = y_0 + 1 / ga * (a_sum + a(n + 1, n) * f(p))
 
-        y[n + 1] = c
+            y[n + 1] = c
+        return y
+
+    y = evolve(y)
 
     if d == 1:
         return t, y
     else:
         return t, y[:, 0]
+
 
 
 def MultiPECE(q, d, f, y_bc, T=1, N=500):
@@ -96,13 +110,13 @@ def MultiPECE(q, d, f, y_bc, T=1, N=500):
 
     # g(Y)
 
-    def g(t, Y):
+    index = int(1 / q)
+    @njit()
+    def g(Y):
         gvec = np.zeros_like(Y)
         gvec[:-1] = Y[1:]  # Shifting y_0 -> y_1 etc.
-        gvec[-1] = f(t, Y[0], Y[int(1 / q)])  # Last value of g(Y)
+        gvec[-1] = f(Y[0], Y[index])  # Last value of g(Y)
         return gvec
-
-    print(g(0.1, y_0))
 
     t, y = PECE(q, y_0, d, g, T=T, N=N)
 
@@ -126,38 +140,38 @@ def MultiPECE(q, d, f, y_bc, T=1, N=500):
 
 # Parameters
 
-alpha = 1
-H_tilde0 = 1
-Omega_r0 = 8.51e-5
-Omega_m0 = 0.30
-Omega_lambda = 0.70
-omega_phi = 1e-3
+a_0 = 1e-6
+a_dot_0 = 1e-6
 
-a_0 = 1e-5
-a_dot_0 = 1e-5
+alpha = 1
+H_tilde0 = 70
+Omega_r0 = 1e-4
+Omega_m0 = 0.2
+Omega_lambda = 0.8
+
+a_dot_0 = 1e-4
 
 a_eq = Omega_r0 / Omega_m0
 
 gam = 1.5
 
-
-def f(t, a, a_dot):
-    if t >100:
-        # kappa = (alpha * omega_phi) ** (1 / 2) * H_tilde0 ** (gam - 1)
-        # kt = kappa * t ** ((gam - 1) / 2)
-        # return np.real(kappa * a_dot_0 * mittag_leffler(kt, (gam-1)/2, 1))
-        return a_dot_0
-
-    else:
-        return (
-            alpha ** (1 / 2)
-            * H_tilde0 ** (gam - 1)
-            * a_dot
-            * np.sqrt(Omega_r0 * a ** (-4) + Omega_m0 * a ** (-3) + Omega_lambda)
-        )
+@njit()
+def f(a, a_dot):
+    aSoft = a + 1e-6
+    return (
+        alpha ** (1 / 2)
+        * H_tilde0 ** (gam - 1)
+        * a_dot
+        * np.sqrt(Omega_r0 * aSoft ** (-4) + Omega_m0 * aSoft ** (-3) + Omega_lambda)
+    )
 
 
-t, a = MultiPECE(1 / 2, 3, f, np.array([a_0, a_dot_0]), T=1, N=int(2e3))
+start = time()
+t, a = MultiPECE(1 / 2, 3, f, np.array([1e-4, 1e-9]), T=1e-1, N=int(1e4))
+end=time()
+
+print(end-start)
+
 
 fig, axs = plt.subplots(1, 1)
 axs.set_xscale("log")
@@ -167,9 +181,9 @@ axs.set_yscale("log")
 i = np.linspace(0, np.log1p(len(a) - 1), 250)
 indices = np.unique(np.expm1(i).astype(int))
 
-ub = np.where(a < 1)
+lb = np.where(t > 1e-6)
 
-axs.plot(t[ub], a[ub])
+axs.plot(t, a)
 
 # Hor
 a_RM = Omega_r0 / Omega_m0
@@ -179,3 +193,35 @@ axs.axhline(a_RM, t[1], t[-1], linewidth=1, color="k")
 axs.axhline(a_ML, t[1], t[-1], linewidth=1, color="k")
 
 plt.show()
+
+
+# History
+
+# # qth derivative of radiation
+# def rad(t, q, d):
+#     coeff = (
+#         (alpha * Omega_r0) ** (1 / 4)
+#         * np.sqrt(-gamma(1 / 2 - gam / 2) / gamma(gam / 2 - 1 / 2))
+#         * H_tilde0 ** ((gam - 1)/ 2)
+#     )
+
+#     rad_array = np.empty((len(t), d))
+
+#     t_soft = t + 0   # Softened t parameter
+#     for i in range(d):
+#         fd_coeff = gamma((gam + 1) / 2) / gamma((gam + 1) / 2 - i*q)
+#         tdep = t_soft ** ((gam - 1) / 2 - i*q)
+#         rad_array[:, i] = fd_coeff * tdep
+
+#     a_rad = coeff * rad_array
+#     rad_dom = np.where(a_rad[:, 0] < Omega_r0 / Omega_m0)
+
+#     print(Omega_r0 / Omega_m0)
+
+#     return a_rad
+
+# t = np.logspace(-10, -6, 3)
+# a = rad(t, 0, 3)
+# print(a)
+
+

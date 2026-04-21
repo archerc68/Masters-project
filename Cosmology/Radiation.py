@@ -1,49 +1,52 @@
-import numpy as np
+import matplotlib as mpl
 import matplotlib.pyplot as plt
-from scipy.special import gamma
+import numpy as np
+from scipy.special import gamma as gamma_func
 
-R, M, L = 9.27e-5, 0.315, 0.685
+alpha, Omega_R0, H_tilde0 = 1, 1e-4, 70
+Omega_m0 = 0.2
 
-def rad(a):
-    return R/(R + a*M + a**4 * L)
+t = np.logspace(-18, -8, 100)
 
-def mat(a):
-    return (a*M)/(R + a*M + a**4 * L)
 
-def de(a):
-    return (a**4 * L)/(R + a*M + a**4 * L)
+def rad(gamma):
+    B = (gamma - 1) / 2
 
-a = np.logspace(-7, 2, 250)
+    t_pow = (H_tilde0 * t) ** B
+
+    B_coeff = np.sqrt(np.pi/(B*np.sin(np.pi*B)))/gamma_func(B)
+
+    return (
+        (alpha * H_tilde0) ** (1 / 4) * B_coeff * t_pow
+    )
+
+gammas = np.linspace(1.1, 2, 500)
+
+cmap = plt.get_cmap("jet", len(gammas))
 
 fig, axs = plt.subplots(1, 1)
+
 axs.set_xscale("log")
+axs.set_yscale("log")
 
-plt.axvline(R/M, 0, 1, linewidth=1, color = 'k')
-plt.axvline((M/L)**(1/3), 0, 1, linewidth=1, color = 'k')
+for i in range(len(gammas)):
+    axs.plot(t, rad(gammas[i]), color=cmap(i))
 
-plt.axhline(0, a[0], a[-1], linewidth=1, color = 'k')
-plt.axhline(1, a[0], a[-1], linewidth=1, color = 'k')
+a_RM = Omega_R0/Omega_m0
+axs.axhline(a_RM, 0, 1, linewidth=1, color="k", linestyle="--")
 
-axs.plot(a, rad(a), label="Radiation", color="r")
-axs.plot(a, mat(a), label="Matter", color="g")
-axs.plot(a, de(a), label="Dark Energy", color="b")
+sm = mpl.cm.ScalarMappable(cmap=cmap, norm=mpl.colors.Normalize(gammas[0], gammas[-1]))
+fig.colorbar(sm, ax=axs, ticks=np.linspace(gammas[0], gammas[-1], 5), label=r"$\gamma$", orientation="vertical")
 
-axs.set_xlabel(r"$a$")
-axs.set_ylabel(r"$\Omega_i/\sum_j\Omega_j$")
+axs.text(1.1*t[0], 1.1*a_RM, r"$a_{RM}^{eq}$",
+         horizontalalignment="left",
+         verticalalignment="bottom")
 
-axs.annotate(r"$a_{eq}^{RM}=\Omega_{R0}/\Omega_{M0}$",
-             xy = (R/M, 0.5),
-             xytext= (3*R/M, 0.5),
-             arrowprops=dict(facecolor='black', arrowstyle="->"))
+axs.set_xlabel("t")
+axs.set_ylabel("a(t)")
 
-axs.annotate(r"$a_{eq}^{M\Lambda}=\sqrt[3]{\Omega_{M0}/\Omega_{\Lambda0}}$",
-             xy = ((M/L)**(1/3), 0.5),
-             xytext= (3*(M/L)**(1/3), 0.5),
-             arrowprops=dict(facecolor='black', arrowstyle="->"))
+# plt.savefig("Figures/Radiation.svg")
 
-axs.legend()
-
-
-plt.savefig("figures/Domination.svg")
+print(1/H_tilde0 * (alpha*Omega_R0)**(-1/2) * (Omega_R0/Omega_m0)**2/2)
 
 plt.show()

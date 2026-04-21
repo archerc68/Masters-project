@@ -6,12 +6,12 @@ from matplotlib.ticker import ScalarFormatter
 
 # Constants
 
-gamma = np.linspace(1, 2, 500)
+gamma = np.linspace(1.5, 2, 500)
 B = (gamma - 1) / 2
 
 alpha = 1
-H_tilde0 = 70
-Omega_phi = 0.5
+H_tilde0 = 2.26e-18
+Omega_phi = 500
 kappa = np.sqrt(alpha * Omega_phi) * H_tilde0 ** (gamma - 1)
 
 a_0 = 0
@@ -56,28 +56,30 @@ axs[1, 1].sharex(axs[0, 1])
 axs[0, 1].sharey(axs[0, 0])
 axs[1, 1].sharey(axs[1, 0])
 
+
+# Formatting ticks
+
+# formatter = ScalarFormatter(useMathText=True)
+# formatter.set_scientific(True)
+# formatter.set_powerlimits((0, 0))
+
+# axs[1, 0].xaxis.set_major_formatter(formatter)
+
 # Hiding ticks
 
 axs[0, 0].tick_params(labelbottom=False)
 axs[0, 1].tick_params(labelbottom=False, labelleft=False)
 axs[1, 1].tick_params(labelleft=False)
 
-# Formatting ticks
-
-formatter = ScalarFormatter(useMathText=True)
-formatter.set_scientific(True)
-formatter.set_powerlimits((0, 0))
-
-axs[1, 0].xaxis.set_major_formatter(formatter)
-
 # Colour bar
 
 cmap = plt.get_cmap("jet", len(gamma))
 
 # Plotting
+t_max = 1e3
 
-tlin = np.linspace(0, 1e-3, 250)
-tlog = np.logspace(-9, -3, 250)
+tlin = np.linspace(1, 1e7, 250)
+tlog = np.logspace(0, 7, 250)
 
 for i in range(len(kappa)):
     # a(t)
@@ -96,6 +98,8 @@ fig.colorbar(sm, ax=axs, ticks=np.linspace(gamma[0], gamma[-1], 5), label=r"$\ga
 axs[0, 0].set_ylabel(r"$a_{\phi}(t)/\dot{a}(0)$")
 axs[1, 0].set_ylabel(r"$\dot{a}_{\phi}(t)/\dot{a}(0)$")
 
+axs[1, 0].set_xlabel("t")
+axs[1, 1].set_xlabel("t")
 
-fig.savefig("Figures/Inflation.svg")
+# fig.savefig("Figures/Inflation.svg")
 plt.show()
